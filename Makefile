@@ -3,11 +3,11 @@
 TARGET = main
 
 # Path to your arduino installation
-ARDUINOPATH ?= ../../../../..
+ARDUINOPATH ?= C:/Program Files (x86)/arduino
 #ARDUINOPATH ?= ../../../..
 
 # configurable options
-OPTIONS = -DF_CPU=48000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
+OPTIONS = -DF_CPU=96000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
 
 # options needed by many Arduino libraries to configure for Teensy 3.0
 OPTIONS += -D__MK20DX256__ -DARDUINO=10600 -DTEENSYDUINO=121
@@ -63,7 +63,7 @@ SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 # TODO: this does not handle Arduino libraries yet...
-C_FILES := $(wildcard *.c)
+C_FILES := src/$(wildcard *.c)
 CPP_FILES := $(wildcard *.cpp)
 OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o)
 
