@@ -33,13 +33,13 @@ OPTIONS += -DF_CPU=$(CLOCK_RATE) -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE -D__MK20DX
 CXXFLAGS = -std=gnu++0x -felide-constructors -fno-exceptions -fno-rtti
 
 # CPPFLAGS = compiler options for C and C++
-CPPFLAGS = -Wall -g -Os -ffunction-sections -fdata-sections -nostdlib -MMD -mthumb -mcpu=cortex-m4 $(OPTIONS) -I$(COREPATH) -Iinclude
+CPPFLAGS = -Wall -g -O3 -ffunction-sections -fdata-sections -nostdlib -MMD -mthumb -mcpu=cortex-m4 $(OPTIONS) -I$(COREPATH) -Iinclude
 
 # compiler options for C only
 CFLAGS =
 
 # linker options
-LDFLAGS = -Os -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mthumb -mcpu=cortex-m4 -T$(LDSCRIPT)
+LDFLAGS = -O3 -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mthumb -mcpu=cortex-m4 -T$(LDSCRIPT)
 
 # additional libraries to link
 LIBS = -lm
@@ -93,11 +93,11 @@ $(BUILDDIR)/%.o: %.cpp
 
 $(TARGET).elf: $(OBJS) $(LDSCRIPT)
 	@echo "[LD] $@"
-	$(CC) $(LDFLAGS) -o "$@" $(OBJS) $(LIBS)
+	@$(CC) $(LDFLAGS) -o "$@" $(OBJS) $(LIBS)
 
 %.hex: %.elf
 	@echo "[HEX] $@"
-	$(SIZE) "$<"
+	@$(SIZE) "$<"
 	@$(OBJCOPY) -O ihex -R .eeprom "$<" "$@"
 
 # compiler generated dependency info
