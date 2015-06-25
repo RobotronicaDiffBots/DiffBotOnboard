@@ -1,0 +1,10 @@
+/DiffBotOnboard.sdf
+/DiffBotOnboard.opensdf
+/DiffBotOnboard.vcxproj.user
+/*.suo
+/tools
+/DiffBotOnboard.log
+/*.elf
+/*.hex
+/build
+/obj

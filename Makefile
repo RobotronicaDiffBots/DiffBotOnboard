@@ -1,59 +1,48 @@
 
 # The name of your project (used to name the compiled .hex file)
 TARGET = main
-
-# Path to your arduino installation
-ARDUINOPATH ?= C:/Program Files (x86)/arduino
-#ARDUINOPATH ?= ../../../..
+CLOCK_RATE = 96000000
 
 # configurable options
-OPTIONS = -DF_CPU=96000000 -DUSB_SERIAL -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE
+OPTIONS = -DUSB_SERIAL
 
-# options needed by many Arduino libraries to configure for Teensy 3.0
-OPTIONS += -D__MK20DX256__ -DARDUINO=10600 -DTEENSYDUINO=121
-
-
-# Other Makefiles and project templates for Teensy 3.x:
-#
-# https://github.com/apmorton/teensy-template
-# https://github.com/xxxajk/Arduino_Makefile_master
-# https://github.com/JonHylands/uCee
-
+# directory to build in
+BUILDDIR = build
 
 #************************************************************************
-# Location of Teensyduino utilities, Toolchain, and Arduino Libraries.
-# To use this makefile without Arduino, copy the resources from these
-# locations and edit the pathnames.  The rest of Arduino is not needed.
+# Toolchain settings
 #************************************************************************
 
 # path location for Teensy Loader, teensy_post_compile and teensy_reboot
-TOOLSPATH = $(ARDUINOPATH)/hardware/tools   # on Linux
-
-# path location for Arduino libraries (currently not used)
-LIBRARYPATH = $(ARDUINOPATH)/libraries
+TOOLSPATH = tools
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = $(ARDUINOPATH)/hardware/tools/arm/bin
+COMPILERPATH = tools/arm/bin
+
+COREPATH = teensy3
+LDSCRIPT = $(COREPATH)/mk20dx256.ld
 
 #************************************************************************
 # Settings below this point usually do not need to be edited
 #************************************************************************
 
-# CPPFLAGS = compiler options for C and C++
-CPPFLAGS = -Wall -g -Os -mcpu=cortex-m4 -mthumb -nostdlib -MMD $(OPTIONS) -I.
+# options needed by many Arduino libraries to configure for Teensy 3.0
+OPTIONS += -DF_CPU=$(CLOCK_RATE) -DLAYOUT_US_ENGLISH -DUSING_MAKEFILE -D__MK20DX256__ -DARDUINO=10600 -DTEENSYDUINO=121
 
 # compiler options for C++ only
 CXXFLAGS = -std=gnu++0x -felide-constructors -fno-exceptions -fno-rtti
+
+# CPPFLAGS = compiler options for C and C++
+CPPFLAGS = -Wall -g -Os -ffunction-sections -fdata-sections -nostdlib -MMD -mthumb -mcpu=cortex-m4 $(OPTIONS) -I$(COREPATH) -Iinclude
 
 # compiler options for C only
 CFLAGS =
 
 # linker options
-LDFLAGS = -Os -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mcpu=cortex-m4 -mthumb -Tmk20dx256.ld
+LDFLAGS = -Os -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mthumb -mcpu=cortex-m4 -T$(LDSCRIPT)
 
 # additional libraries to link
 LIBS = -lm
-
 
 # names for the compiler programs
 CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
@@ -63,29 +52,61 @@ SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 # TODO: this does not handle Arduino libraries yet...
-C_FILES := src/$(wildcard *.c)
-CPP_FILES := $(wildcard *.cpp)
-OBJS := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o)
+TC_FILES := $(wildcard $(COREPATH)/*.c)
+TCPP_FILES := $(wildcard $(COREPATH)/*.cpp)
+#TCXX_FILES := $(addprefix $(COREPATH)/, $(ARD_SOURCES))
+#TC_FILES := $(filter %.c, $(TCXX_FILES))
+#TCPP_FILES := $(filter %.cpp, $(TCXX_FILES))
+
+C_FILES := $(wildcard src/*.c)
+CPP_FILES := $(wildcard src/*.cpp)
+
+SOURCES := $(C_FILES:.c=.o) $(CPP_FILES:.cpp=.o) $(TC_FILES:.c=.o) $(TCPP_FILES:.cpp=.o)
+OBJS := $(foreach src,$(SOURCES), $(BUILDDIR)/$(src))
 
 
 # the actual makefile rules (all .o files built by GNU make's default implicit rules)
 
-all: $(TARGET).hex
+all: hex
 
-$(TARGET).elf: $(OBJS) mk20dx256.ld
-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
+build: $(TARGET).elf
+
+hex: $(TARGET).hex
+
+post_compile: $(TARGET).hex
+	@$(abspath $(TOOLSPATH))/teensy_post_compile -file="$(basename $<)" -path=$(CURDIR) -tools="$(abspath $(TOOLSPATH))"
+
+reboot:
+	@-$(abspath $(TOOLSPATH))/teensy_reboot
+
+upload: post_compile reboot
+
+$(BUILDDIR)/%.o: %.c
+	@echo "[CC] $< $@"
+	@mkdir -p "$(dir $@)"
+	@$(CC) $(CPPFLAGS) $(CFLAGS) -o "$@" -c "$<"
+
+$(BUILDDIR)/%.o: %.cpp
+	@echo "[CXX] $< $@"
+	@mkdir -p "$(dir $@)"
+	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o "$@" -c "$<"
+
+$(TARGET).elf: $(OBJS) $(LDSCRIPT)
+	@echo "[LD] $@"
+	$(CC) $(LDFLAGS) -o "$@" $(OBJS) $(LIBS)
 
 %.hex: %.elf
-	$(SIZE) $<
-	$(OBJCOPY) -O ihex -R .eeprom $< $@
-	$(abspath $(TOOLSPATH))/teensy_post_compile -file=$(basename $@) -path=$(shell pwd) -tools=$(abspath $(TOOLSPATH))
-	-$(abspath $(TOOLSPATH))/teensy_reboot
-
+	@echo "[HEX] $@"
+	$(SIZE) "$<"
+	@$(OBJCOPY) -O ihex -R .eeprom "$<" "$@"
 
 # compiler generated dependency info
 -include $(OBJS:.o=.d)
 
 clean:
-	rm -f *.o *.d $(TARGET).elf $(TARGET).hex
-
-
+	@echo Cleaning...
+	@rm -rf "$(BUILDDIR)"
+	@rm -f "$(TARGET).elf" "$(TARGET).hex"
+	
+install:
+	@echo Downloading teensy3
