@@ -86,6 +86,7 @@
     <ClCompile Include="src\NMEASerial.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\main.h" />
     <ClInclude Include="include\NMEASerial.h" />
     <ClInclude Include="include\util.h" />
   </ItemGroup>
