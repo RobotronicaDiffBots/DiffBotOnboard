@@ -1,12 +1,13 @@
 #include <stdlib.h>
 #include <string.h>
-#include "NMEAParse.h"
+#include "Networking.h"
 #include "elapsedMillis.h"
 #include "HardwareSerial.h"
+#include "LEDHelper.h"
 
 #define MSGLENGTH 32
 
-extern char robotID[];
+char robotID[] = "AA";
 
 extern bool gtoflag;
 extern bool motflag;
@@ -15,9 +16,22 @@ extern float mot[];
 extern float loc[];
 extern float heading; //in degrees, 0 is down stage, -ve is stage left, +ve right   
 
-extern elapsedMillis timeout;
+elapsedMillis timeout;
+
+NMEAReader btReader(&btSerial, NMEACallback);
+NMEAReader xbReader(&xbSerial, NMEACallback);
 
 bool msgerr = false;
+
+void readSerial() {
+	btReader.read();
+	xbReader.read();
+}
+
+void setupNetworking() {
+	btSerial.begin(115200);
+	xbSerial.begin(115200);
+}
 
 void NMEACallback(char *msg, Stream *stream) {
 	//Extract the messenger and the code
@@ -234,4 +248,23 @@ void stop() {
 
 void setErr() {
 	msgerr = true;
+}
+void stop() {
+	motflag = true;
+	mot[0] = 0;
+	mot[1] = 0;
+	gtoflag = false;
+	setRGBLED(BAD);
+}
+bool; timeoutCheck() {
+	/* Commented for manual sending of messages
+	//if we haven't gotten a message in 2 seconds, probably stop
+	if (timeout > 2000) {
+		return true;
+	}	
+	else {
+		timeout = 0;
+	}
+	*/
+	return false;
 }
