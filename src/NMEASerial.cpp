@@ -20,7 +20,7 @@ void NMEAReader::read() {
 		if (pos >= 6 && buf[pos-5] == '*') {
 			if (verify(buf, pos)) {
 				buf[pos-5] = '\0';//terminate string before the *
-				callback(buf + 1);//skip the $
+				callback(buf + 1, stream);//skip the $
 			}
 
 			reading = false;

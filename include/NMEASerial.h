@@ -7,7 +7,7 @@
 class NMEAReader
 {
 public:
-	typedef void(*NMEACallback_t)(char *msg);
+	typedef void(*NMEACallback_t)(char *msg, Stream *stream);
 
 	NMEAReader(Stream *stream, NMEACallback_t callback) : stream(stream), callback(callback) {};
 	void read();

@@ -83,10 +83,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\NMEAParse.cpp" />
     <ClCompile Include="src\NMEASerial.cpp" />
+    <ClCompile Include="src\LEDHelper.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\main.h" />
+    <ClInclude Include="include\Encoder.h" />
+    <ClInclude Include="include\LEDHelper.h" />
+    <ClInclude Include="include\NMEAParse.h" />
     <ClInclude Include="include\NMEASerial.h" />
     <ClInclude Include="include\util.h" />
   </ItemGroup>
