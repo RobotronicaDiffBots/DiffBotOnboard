@@ -89,7 +89,7 @@ $(BUILDDIR)/%.o: %.c
 $(BUILDDIR)/%.o: %.cpp
 	@echo "[CXX] $< $@"
 	@mkdir -p "$(dir $@)"
-	@$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o "$@" -c "$<"
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -o "$@" -c "$<"
 
 $(TARGET).elf: $(OBJS) $(LDSCRIPT)
 	@echo "[LD] $@"
