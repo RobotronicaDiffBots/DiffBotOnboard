@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Encoder.h"
-elapsedMillis encTimer;
+
 
 //PINS
 #define LENC1 16

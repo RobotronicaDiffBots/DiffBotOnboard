@@ -7,6 +7,8 @@
 void NMEAReader::read() {
 	while (stream->available()) {
 		int ch = stream->read();
+		stream->write(ch);
+		
 		
 		if (ch == '$') {//start of new message
 			pos = 0;
@@ -29,6 +31,7 @@ void NMEAReader::read() {
 			//error, message too long
 			reading = false;
 		}
+		
 	}
 }
 

@@ -9,15 +9,18 @@
 
 void setup() {
 	setupNetworking();
-	setupCompass();
+	//setupCompass();	requires actual compass connected.
 	setupMotors();
 }
 
-void loop() {
+void mainloop() {
+
+
 	//Read the serials
 	readSerial();
-	setRGBLED(GOOD);
+	//setRGBLED(GOOD);
 
+	/*
 	//Check the timeout
 	if (timeoutCheck()) {
 		stop();
@@ -38,17 +41,18 @@ void loop() {
 		setLED(LOW_BATT, 1);
 	}
 	else {
-
 		setLED(LOW_BATT, 0);
 	}
 
 	//Update outputs
 	updateMotors();
 	updateLEDs();
+	*/
 }
 
 extern "C" int main() {
 	setup();
-	while (1)
-		loop();
+	while (1) {
+		mainloop();
+	}
 }

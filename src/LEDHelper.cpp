@@ -9,7 +9,7 @@
 uint8_t statusLED = 0;
 
 void setRGBLED(int mode) {
-	statusLED = statusLED & ~7 | (1 << mode);
+	statusLED = (statusLED & ~7) | (1 << mode);
 }
 
 void setLED(int lednum, int level) {

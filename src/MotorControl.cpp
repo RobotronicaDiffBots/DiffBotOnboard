@@ -21,6 +21,8 @@ Encoder rEncoder(RENC1, RENC2);
 
 LSM303 compass;
 
+elapsedMillis encTimer;
+
 void readEncoders()	{
 	if (encTimer > ERT_MS) {
 		encTimer = 0;
@@ -92,7 +94,7 @@ void setupCompass() {
 	LSM303::vector<int16_t> mmax = { +32767, +32767, +32767 };
 	compass.m_max = mmax;
 	compass.read();
-	float initHeading = compass.heading();
+	initHeading = compass.heading();
 }
 
 void checkCompass() {
@@ -129,7 +131,9 @@ void normaliseEstHeading() {
 	}
 }
 
-void setupMotors();
+void setupMotors() {
+	//TODO: THIS
+}
 
 void updateMotors() {
 	for (int i = 0; i < 2; i++) {
