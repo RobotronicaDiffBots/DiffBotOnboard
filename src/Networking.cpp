@@ -5,6 +5,7 @@
 #include "HardwareSerial.h"
 #include "LEDHelper.h"
 
+
 #define MSGLENGTH 32
 
 char robotID[] = "AA";
@@ -30,6 +31,7 @@ void readSerial() {
 void setupNetworking() {
 	btSerial.begin(115200);
 	//xbSerial.begin(115200);
+	timeout = 0;
 }
 
 void NMEACallback(char *msg, Stream *stream) {
@@ -89,10 +91,21 @@ void NMEACallback(char *msg, Stream *stream) {
 	//Brake the motors
 	else if (strcmp(code, "STP") == 0) {
 		stop();
+		Respond(uid, stream);
 	}
 	//tell the robot where it is and where it is facing
 	else if (strcmp(code, "LOC") == 0) {
 		setLocation(msg);
+		Respond(uid, stream);
+	}
+	//Tell the robot to go a distance
+	else if (strcmp(code, "DRV") == 0) {
+		setDrive(msg);
+		Respond(uid, stream);
+	}
+	//Tell the robot to rotate 
+	else if (strcmp(code, "ROT") == 0) {
+		setRotate(msg);
 		Respond(uid, stream);
 	}
 	//The code wasn't recognised, but at least let the controller know we got the msg
@@ -122,6 +135,19 @@ void Respond(int uid, Stream *stream) {
 
 	strcat(msg, ",");
 	strcat(msg, struid);
+
+	uint8_t chk = 0;
+	for (uint8_t i = 1; i < strlen(msg); i++) {
+		chk ^= msg[i];
+	}
+	strcat(msg, "*");
+
+	char checksum[3];
+	sprintf(checksum, "%x", chk);
+	checksum[2] = '\0';
+
+	strcat(msg, checksum);
+
 	strcat(msg, "\r\n");
 
 	stream->print(msg);
@@ -150,9 +176,11 @@ void setMotorDemands(char *msg) {
 		motor_demands[i] = atof(mdem[i]);
 		//bounds check
 		if (motor_demands[i] < -1 || motor_demands[i] > 1) {
-			msgerr = true;
 			return;
 		}
+		btSerial.print("Motor: ");
+		btSerial.print(motor_demands[i]);
+		btSerial.write("\r\n");
 	}
 
 	//If we got here, we have a legitimate demand. Do it!
@@ -240,9 +268,19 @@ void setLocation(char *msg) {
 	heading = dir;
 }
 
+void setDrive() {
+	//TODO
+}
+
+void setRotate() {
+	//TODO
+}
+
+
 void setErr() {
 	msgerr = true;
 }
+
 void stop() {
 	motflag = true;
 	mot[0] = 0;
@@ -250,15 +288,9 @@ void stop() {
 	gtoflag = false;
 	setRGBLED(BAD);
 }
+
 bool timeoutCheck() {
-	/* Commented for manual sending of messages
 	//if we haven't gotten a message in 2 seconds, probably stop
-	if (timeout > 2000) {
-		return true;
-	}	
-	else {
-		timeout = 0;
-	}
-	*/
-	return false;
+	return (timeout > 2000);
+
 }

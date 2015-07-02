@@ -3,20 +3,24 @@
 #pragma once
 
 //LED Statuses
-#define BAD 0
-#define GOOD 1
-#define EH 2
+#define BAD 7
+#define GOOD 6
+#define EH 5
 
-#define NO_MSGS 1
+#define NO_MSGS 4
 #define LOW_BATT 2
 #define NO_BATT 3
-#define GTO_MODE 4
-#define MTR_MODE 5
+#define GTO_MODE 1
+#define MTR_MODE 0
 
 extern uint8_t statusLED;
 
-void setRGBLED(int mode);
+void setRGBLED(uint8_t mode);
 
-void setLED(int lednum, int level);
+void setLED(uint8_t lednum, uint8_t level);
 
 void updateLEDs();
+
+void setupLEDs();
+
+void resetLEDs();

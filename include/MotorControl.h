@@ -9,6 +9,14 @@
 #define RENC1 3
 #define RENC2 4
 
+#define M1D1 21
+#define M1IN1 22
+#define M1IN2 23
+
+#define M2D1 5
+#define M2IN1 15
+#define M2IN2 6
+
 //Physical Dimensions (SI Units)
 #define WHEEL_RAD 0.05F
 #define WHEELBASE 0.3F
@@ -31,3 +39,4 @@ void normaliseCompassHeading();
 void normaliseEstHeading();
 void setupMotors();
 void updateMotors();
+void estimateLocation();

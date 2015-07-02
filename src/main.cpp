@@ -9,32 +9,32 @@
 
 void setup() {
 	setupNetworking();
-	//setupCompass();	requires actual compass connected.
+	setupLEDs();
+	updateLEDs();
+	//setupCompass();		//requires actual compass connected.
 	setupMotors();
 }
 
 void mainloop() {
-
-
 	//Read the serials
 	readSerial();
-	//setRGBLED(GOOD);
+	resetLEDs();
 
-	/*
 	//Check the timeout
 	if (timeoutCheck()) {
 		stop();
 		setLED(NO_MSGS, 1);
+		setRGBLED(BAD);
 	}
 	else {
 		setLED(NO_MSGS, 0);
 	}
 
-
 	//Update physical inputs
-	checkCompass();
+	//checkCompass();	//Won't work without compass connected
 	readEncoders();
 
+	/*
 	//Check battery, finally, before moving
 	if (!checkBattery()) {
 		stop();
@@ -43,11 +43,14 @@ void mainloop() {
 	else {
 		setLED(LOW_BATT, 0);
 	}
+	*/
+
+	//Estimate location
+	estimateLocation();
 
 	//Update outputs
 	updateMotors();
-	updateLEDs();
-	*/
+	updateLEDs();	
 }
 
 extern "C" int main() {
