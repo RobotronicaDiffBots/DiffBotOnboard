@@ -82,21 +82,15 @@
     </BuildLog>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\Battery.cpp" />
+    <ClCompile Include="src\Control.cpp" />
     <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\MotorControl.cpp" />
-    <ClCompile Include="src\Networking.cpp" />
-    <ClCompile Include="src\NMEASerial.cpp" />
     <ClCompile Include="src\LEDHelper.cpp" />
+    <ClCompile Include="src\Networking.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\Battery.h" />
-    <ClInclude Include="include\Encoder.h" />
+    <ClInclude Include="include\Control.h" />
     <ClInclude Include="include\LEDHelper.h" />
-    <ClInclude Include="include\MotorControl.h" />
     <ClInclude Include="include\Networking.h" />
-    <ClInclude Include="include\NMEASerial.h" />
-    <ClInclude Include="include\util.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

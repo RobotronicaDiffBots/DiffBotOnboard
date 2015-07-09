@@ -26,6 +26,21 @@ void setupLEDs() {
 	pinMode(STAT_CLK, OUTPUT);
 	pinMode(STAT_DIN, OUTPUT);
 	pinMode(STAT_LOAD, OUTPUT);
+	updateLEDs();
+	//Do a small animation, to ensure they're working
+	for (int i = 0; i < 5; i++) {
+		setLED(i, 1);
+		setRGBLED(BAD);
+		updateLEDs();
+		delay(100);
+		setRGBLED(EH);
+		updateLEDs();
+		delay(100);
+		setLED(i, 0);
+		setRGBLED(GOOD);
+		updateLEDs();
+		delay(100);
+	}
 }
 
 void updateLEDs() {

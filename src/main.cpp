@@ -1,56 +1,53 @@
 #include "Networking.h"
-#include "Encoder.h"
-#include "MotorControl.h"
+#include "Control.h"
+#include "util.h"
 #include "LEDHelper.h"
-#include "Battery.h"
 
-#include <Math.h>
+#define DT_CONTROL_MS       100             // Main sample loop timer (ms)
 
+
+serialReader xbReader = serialReader(&xbSerial);
+serialReader btReader = serialReader(&btSerial);
+
+uint32_t previousMillis;
 
 void setup() {
-	setupNetworking();
 	setupLEDs();
-	updateLEDs();
-	//setupCompass();		//requires actual compass connected.
+
+	xbSerial.begin(xbBaud);
+	btSerial.begin(btBaud);
+
 	setupMotors();
+	setIdle();
 }
 
 void mainloop() {
-	//Read the serials
-	readSerial();
-	resetLEDs();
 
-	//Check the timeout
-	if (timeoutCheck()) {
-		stop();
-		setLED(NO_MSGS, 1);
-		setRGBLED(BAD);
+	if (xbReader.checkRadio()) {
+		processPacket(xbReader.radioMessage, &xbSerial);
 	}
-	else {
-		setLED(NO_MSGS, 0);
+	if (btReader.checkRadio()) {
+		processPacket(btReader.radioMessage, &btSerial);
 	}
 
-	//Update physical inputs
-	//checkCompass();	//Won't work without compass connected
-	readEncoders();
-
-	/*
-	//Check battery, finally, before moving
-	if (!checkBattery()) {
-		stop();
-		setLED(LOW_BATT, 1);
+	
+	//If either of these are being flooded, set an output LED
+	if (btReader.flood() || xbReader.flood()) {
+		//setLEDMode(WARNING);
 	}
-	else {
-		setLED(LOW_BATT, 0);
+
+
+	if (previousMillis - millis() > DT_CONTROL_MS) {
+		previousMillis = millis();
+		//Check when we last got a valid packet
+		uint32_t lastValid = max(btReader.lastValid(), xbReader.lastValid());
+		if ((previousMillis - lastValid) >= 2000) {
+			//setLEDMode(ERROR);
+			setIdle();
+		}
+		/* This is where all the main action/tasks take place. DO NOT use while loops or delays */
+		updateLoopOnce();
 	}
-	*/
-
-	//Estimate location
-	estimateLocation();
-
-	//Update outputs
-	updateMotors();
-	updateLEDs();	
 }
 
 extern "C" int main() {
