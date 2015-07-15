@@ -1,7 +1,7 @@
 #include "Networking.h"
 
 #define QBOT_ID             1               // The unique ID of the robot (0-255), 250 is global
-#define MAX_DURATION		100				// The longest we'll try analyse incoming packets (ms)
+#define MAX_DURATION		2000			// The longest we'll try analyse incoming packets (ms)
 /**
 * Read the light weight serial packets, check validity and action if specified for the current robot.
 * Currently set up for manual control of left motor and right motor. If want heading and speed, this can
@@ -23,19 +23,14 @@
 int serialReader::checkRadio() {
 	unsigned long ts;
 	ts = micros();
-
-	//Assume not flooded at the start (update later)
 	isFlooded = 0;
-
 	uint8_t crc = 0;
 	uint8_t *p = (uint8_t *)&radioMessage;
 	
-
+	//Check for bytes
 	while (stream->available() > 0) {
 		radioMessage.nextByte = (uint8_t)(stream->read());
-		//TODO remove
-		stream->write(radioMessage.nextByte);
-
+		//Update state
 		switch (radioMessage.mode) {
 		case MSG_SYNC_0:
 			if (radioMessage.nextByte == 0xAA) {
@@ -99,13 +94,15 @@ int serialReader::checkRadio() {
 
 		case MSG_CHECKSUM:
 			radioMessage.crc = radioMessage.nextByte;
-			/* Calculate the CRC */
+			/* Calculate the CRC, inc the seqnum */
 			for (int k = 0; k < 9; k++) {
 				crc ^= p[k];
 			}
 
+			//if it's a valid message, reset the "time since last packet" timer
 			radioMessage.mode = MSG_SYNC_0;
 			if (radioMessage.crc == crc) {
+				t_lastpacket = millis();
 				return 1;
 			}
 			else {

@@ -41,12 +41,12 @@ public:
 	enum { MSG_SYNC_0 = 0, MSG_SYNC_1, MSG_QBOT_ID, MSG_TYPE, MSG_D1, MSG_D2,
 		MSG_D3, MSG_D4, MSG_SEQNO, MSG_CHECKSUM };
 
-
-	serialReader(Stream *stream)
-		: stream(stream){
-		radioMessage.seqno = 0;
-		t_lastpacket = 0;
-		
+	//Setup some default values
+	serialReader(Stream *stream) : stream(stream) {
+		radioMessage.seqno = 255;	//The first message should be 0, don't want to collide
+		t_lastpacket = 0;			//Time since last packet
+		radioMessage.hdr0 = 0xAA;	//The first two parameters of the message are always the same
+		radioMessage.hdr1 = 0x55;
 	};
 
 	void setupReader();
@@ -57,7 +57,6 @@ public:
 
 private:
 	Stream *stream;
-
 	uint32_t t_lastpacket;
 	uint8_t isFlooded;
 };
