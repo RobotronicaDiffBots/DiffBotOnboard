@@ -6,8 +6,8 @@
 #define EH 5		//Blue
 
 #define NO_MSGS 4
-#define LOW_BATT 2
-#define NO_BATT 3
+#define LOW_BATT 3
+#define NO_BATT 2
 #define GTO_MODE 1
 #define MTR_MODE 0
 

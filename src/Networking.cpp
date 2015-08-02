@@ -1,7 +1,9 @@
 #include "Networking.h"
 
-#define QBOT_ID             1               // The unique ID of the robot (0-255), 250 is global
-#define MAX_DURATION		2000			// The longest we'll try analyse incoming packets (ms)
+#define QBOT_ID             20              // The unique ID of the robot (0-255), 250 is global
+#define MAX_DURATION		2000			// The longest we'll try analyse incoming packets (us)
+
+
 /**
 * Read the light weight serial packets, check validity and action if specified for the current robot.
 * Currently set up for manual control of left motor and right motor. If want heading and speed, this can
@@ -11,7 +13,7 @@
 *      hdr0        - First sync byte 0xAA
 *      hdr1        - Second sync byte 0x55
 *      robotID     - Targeted robot ID number (0-255). Special case 250 = all robots
-*      type        - Specific task to be executed by the robot (needs master enum list)
+*      type        - Specific task tso be executed by the robot (needs master enum list)
 *      d1		   - Data field 1
 *      d2		   - Data field 2
 *      d3		   - Data field 3
@@ -19,6 +21,13 @@
 *      seqno       - check that current packet is unique (one byte)
 *      crc         - checksum for incoming packet from hdr0 to seqno (one byte)
 */
+
+//TODO remove
+char toHex(uint8_t i) {
+	if (i >= 0xA) return 'A' + i - 0xA;
+	return '0' + i;
+}
+
 
 int serialReader::checkRadio() {
 	unsigned long ts;
@@ -30,6 +39,11 @@ int serialReader::checkRadio() {
 	//Check for bytes
 	while (stream->available() > 0) {
 		radioMessage.nextByte = (uint8_t)(stream->read());
+		if (VERBOSE) {
+			stream->write(toHex((radioMessage.nextByte & 0xF0) >> 4));
+			stream->write(toHex((radioMessage.nextByte) & 0x0F));
+			stream->write("\r\n");
+		}
 		//Update state
 		switch (radioMessage.mode) {
 		case MSG_SYNC_0:

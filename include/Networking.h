@@ -5,7 +5,9 @@
 #include "HardwareSerial.h"
 #include "core_pins.h"
 
-#define VERBOSE             1               // Verbose mode flag for debug purposes, use with caution when other robots online
+#define VERBOSE             0               // Verbose mode flag for debug purposes, use with caution when other robots online
+
+#define DT_CONTROL_MS       10             // Main sample loop timer (ms)
 
 //Descriptive names for the serial objects
 #define xbSerial Serial1
@@ -14,6 +16,7 @@
 
 #define xbBaud 9600
 #define btBaud 115200
+#define topBaud 9600
 
 typedef struct _radio_message {
 	uint8_t     hdr0;
@@ -61,3 +64,4 @@ private:
 	uint8_t isFlooded;
 };
 
+char toHex(uint8_t i);
