@@ -3,7 +3,7 @@
 #include "core_pins.h"
 #include "LEDHelper.h"
 #include "Encoder.h"
-#include "Math.h"
+#include "math.h"
 #include "util.h"
 //Pins
 #define M1D1 21
@@ -18,11 +18,12 @@
 #define WB 0.285							//Wheelbase length
 #define WD 0.1
 #define DELTAT 0.04
-#define IDELTAT 25
+#define IDELTAT (1 / DELTAT)
+//#define IDELTAT 25
 
-#define VCONST PI * 0.1 * 25 /1920.0		//25 = 1/DELTAT
+#define VCONST (PI * 0.1 * IDELTAT / 1920.0)		//25 = 1/DELTAT
 
-#define MAX_TICKS_PER_SEC 60				//May need tweaking
+#define MAX_TICKS_PER_SEC 50				//May need tweaking
 
 enum {
 	TASK_IDLE = 0,	//Robot stops (0 params)
@@ -56,9 +57,14 @@ float pose[3] = { 0 };
 char output[50];
 
 //PID
+// Error at time t
 int16_t e_t;
-int16_t e_tl;
-int16_t e_tr;
+// Error at time t-1
+int16_t e_t1;
+int16_t e_tL;
+int16_t e_tR;
+int16_t e_tL1;
+int16_t e_tR1;
 
 //Spin stuff
 int16_t demandedLoc;
@@ -74,7 +80,25 @@ float mk_p = 1;
 float mk_i = 1;
 float mk_d = 1;
 
+float p_error;
+float i_error;
+float d_error;
 
+// Need these for straight line control
+// Pose has position but I don't want that
+float lvel;
+float rvel;
+
+float p_errorL;
+float i_errorL;
+float d_errorL;
+
+float p_errorR;
+float i_errorR;
+float d_errorR;
+
+int16_t demandedVelL;
+int16_t demandedVelR;
 
 /**
 * Process the valid incoming radio packet based on task and set the overall robot mode.
@@ -93,19 +117,34 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
 
 	//Cache the message that we got. 
 	latestMessage = radioMessage;
+    // Reset error values if changing mode
+    if(mode != latestMessage.type) {
+        p_error = 0.f;
+        i_error = 0.f;
+        d_error = 0.f;
+        
+        p_errorL = 0.f;
+        i_errorL = 0.f;
+        d_errorL = 0.f;
+        
+        p_errorR = 0.f;
+        i_errorR = 0.f;
+        d_errorR = 0.f;
+    }
+    
 	switch (latestMessage.type) {
 	case TASK_MANUAL:
 		mode = TASK_MANUAL;
-		dl = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;	//changes (-100, 100) to (-MAX, MAX)
-		dr = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;	//				"
-		e_tl = dl - lcount;
-		e_tr = dr - rcount;
+        demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+        demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+        
 		break;
 	case TASK_SPIN:
 		mode = TASK_SPIN;
 		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
 		sdem = latestMessage.d3;
 		e_t = demandedLoc - pose[2] * 1000;
+        
 		break;
 	case TASK_DRIVE:
 		mode = TASK_DRIVE;
@@ -120,6 +159,10 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
 * Execute one time step of the action/task state machine. Do not use while loops or delays here.
 * Trying to keep the system semi-concurrent.
 */
+
+int ledVal = 0;
+char debugLine[20] = {0};
+
 void updateLoopOnce() {
 	//First, update the motor outputs based on the mode
 	switch (mode) {
@@ -130,34 +173,74 @@ void updateLoopOnce() {
 
 		case TASK_MANUAL:
 		{
-			int16_t e_tl1 = dl - lcount;
-			int16_t e_tr1 = dr - rcount;
-
-			int16_t ldiff = e_tl1 - e_tl;
-			int16_t rdiff = e_tr1 - e_tr;
-
-			int8_t lvel = clamp(-100, 100, e_tl1 * mk_p + ldiff * DELTAT * mk_i + ldiff * IDELTAT * mk_d);
-			int8_t rvel = clamp(-100, 100, e_tl1 * mk_p + rdiff * DELTAT * mk_i + rdiff * IDELTAT * mk_d);
-
-			e_tl = e_tl1;
-			e_tr = e_tr1;
+            e_tL = demandedVelL - lcount;
+            e_tR = demandedVelR - rcount;
+            
+            p_errorL = e_tL;
+            p_errorR = e_tR;
+            
+            d_errorL = (e_tL - e_tL1) * IDELTAT;
+            d_errorR = (e_tR - e_tR1) * IDELTAT;
+            
+            int8_t velL = clamp(-100, 100, p_errorL * mk_p + i_errorL * mk_i + d_errorL * mk_d);
+            int8_t velR = clamp(-100, 100, p_errorR * mk_p + i_errorR * mk_i + d_errorR * mk_d);
+            
+            ldem = 100 + velL;
+            rdem = 100 + velR;
+            
+            e_tL1 = e_tL;
+            e_tR1 = e_tR;
+            
+            i_errorL += e_tL * DELTAT;
+            i_errorR += e_tR * DELTAT;
+            
+            sprintf(debugLine, "velL %d\n", velL);
+            btSerial.println(debugLine);
+            sprintf(debugLine, "velR %d\n", velR);
+            btSerial.println(debugLine);
+            
 			break;
 		}
 		case TASK_SPIN:
 		{
-			int16_t mr = pose[2] * 1000;
-			int16_t e_t1 = demandedLoc - mr;
+			int16_t currentLoc = pose[2] * 1000;
+			e_t = demandedLoc - currentLoc;
 
-			int16_t diff = (e_t1 - e_t);
-			int8_t vel = clamp(-100, 100, e_t1 * sk_p + diff * DELTAT * sk_i + diff * IDELTAT * sk_d) * (sdem * 0.01);
+			//int16_t diff = (e_t - e_t1);
+            p_error = e_t;
+            d_error = (e_t - e_t1) * IDELTAT;
+            
+            int8_t vel = clamp(-100, 100, p_error * sk_p + i_error * sk_i + d_error * sk_d);
+			
 			ldem = 100 + vel;
 			rdem = 100 + -vel;
 
-			e_t = e_t1;
+			e_t1 = e_t;
+            i_error += e_t * DELTAT;
 			break;
 		}
 		case TASK_DRIVE:
-
+        {
+//             int16_t currentVel = pose[2] * 1000;
+// 			e_t = demandedVel - currentVel;
+// 
+// 			int16_t diff = (e_t - e_t1);
+//             p_error = e_t;
+//             d_error = (e_t - e_t1) * IDELTAT;
+//             
+//             float p_out = p_error * sk_p;
+//             float i_out = i_error * sk_i;
+//             float d_out = d_error * sk_d;
+//             
+//             int8_t vel = clamp(-100, 100, p_out + i_out + d_out);
+// 			//int8_t vel = clamp(-100, 100, e_t1 * sk_p + diff * DELTAT * sk_i + diff * IDELTAT * sk_d) * (sdem * 0.01);
+// 			ldem = 100 + vel;
+// 			rdem = 100 + -vel;
+// 
+// 			e_t1 = e_t;
+//             i_error += e_t * DELTAT;
+            break;
+        }
 		default: //Any commands we don't care about, like TASK_LED or PNG			
 			break;
 	}
@@ -214,7 +297,7 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
 	analogWrite(M2D1, 255 - rmag);
 
 	//The directions
-	if (1) {//mode != TASK_BRAKE) {
+	if (!((abs(latestMessage.d1 - 100) < 5) && (abs(latestMessage.d2 - 100) < 5))) {
 		digitalWriteFast(M1IN1, ldem < 100);
 		digitalWriteFast(M1IN2, !(ldem < 100));
 		digitalWriteFast(M2IN1, rdem < 100);
@@ -230,12 +313,11 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
 
 void calculateLocation() {
 	//Next, let's see how far we've come
-	lcount = lenc.read();
+	lcount = -lenc.read();
 	rcount = renc.read();
 
-	float lvel = lcount * VCONST;
-	float rvel = -1* rcount * VCONST;
-	
+	lvel = lcount * VCONST;
+	rvel = -1* rcount * VCONST;
 
 	lenc.write(0);
 	renc.write(0);

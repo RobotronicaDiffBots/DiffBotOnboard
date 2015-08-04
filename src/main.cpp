@@ -55,7 +55,7 @@ void mainloop() {
 	}
 
 	//Execute the main loop if it's been enough time
-	if (previousMillis - millis() > DT_CONTROL_MS) {
+	if ((previousMillis - millis()) > DT_CONTROL_MS) {
 		previousMillis = millis();
 		//Check when we last got a valid packet 
 		//If too long, stop the robot and set a status output

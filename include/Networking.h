@@ -17,7 +17,19 @@
 #define xbBaud 9600
 #define btBaud 115200
 #define topBaud 9600
-
+/*
+* Packet Structure (10 Bytes):
+*      hdr0        - First sync byte 0xAA
+*      hdr1        - Second sync byte 0x55
+*      robotID     - Targeted robot ID number (0-255). Special case 250 = all robots
+*      type        - Specific task tso be executed by the robot (needs master enum list)
+*      d1		   - Data field 1
+*      d2		   - Data field 2
+*      d3		   - Data field 3
+*      d4		   - Data field 4
+*      seqno       - check that current packet is unique (one byte)
+*      crc         - checksum for incoming packet from hdr0 to seqno (one byte)
+*/
 typedef struct _radio_message {
 	uint8_t     hdr0;
 	uint8_t     hdr1;

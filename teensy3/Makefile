@@ -3,7 +3,7 @@
 TARGET = main
 
 # Path to your arduino installation
-ARDUINOPATH ?= ../../../../..
+ARDUINOPATH ?= /home/evangel/QUT/Robotronica_2015/arduino-1.6.5/
 #ARDUINOPATH ?= ../../../..
 
 # configurable options
@@ -27,13 +27,14 @@ OPTIONS += -D__MK20DX256__ -DARDUINO=10600 -DTEENSYDUINO=121
 #************************************************************************
 
 # path location for Teensy Loader, teensy_post_compile and teensy_reboot
-TOOLSPATH = $(ARDUINOPATH)/hardware/tools   # on Linux
+TOOLSPATH = $(ARDUINOPATH)/hardware/tools
+# on Linux
 
 # path location for Arduino libraries (currently not used)
 LIBRARYPATH = $(ARDUINOPATH)/libraries
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = $(ARDUINOPATH)/hardware/tools/arm/bin
+COMPILERPATH = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/
 
 #************************************************************************
 # Settings below this point usually do not need to be edited
@@ -56,10 +57,10 @@ LIBS = -lm
 
 
 # names for the compiler programs
-CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
-CXX = $(abspath $(COMPILERPATH))/arm-none-eabi-g++
-OBJCOPY = $(abspath $(COMPILERPATH))/arm-none-eabi-objcopy
-SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
+CC = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-gcc
+CXX = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-g++
+OBJCOPY = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-objcopy
+SIZE = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 # TODO: this does not handle Arduino libraries yet...

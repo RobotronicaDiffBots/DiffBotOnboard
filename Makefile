@@ -7,7 +7,7 @@ CLOCK_RATE = 96000000
 OPTIONS = -DUSB_SERIAL
 
 # directory to build in
-BUILDDIR = build
+BUILDDIR = "build"
 
 #************************************************************************
 # Toolchain settings
@@ -17,9 +17,9 @@ BUILDDIR = build
 TOOLSPATH = tools
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = tools/arm/bin
+COMPILERPATH = /usr/bin
 
-COREPATH = teensy3
+COREPATH = ./teensy3
 LDSCRIPT = $(COREPATH)/mk20dx256.ld
 
 #************************************************************************
@@ -39,16 +39,21 @@ CPPFLAGS = -Wall -g -O3 -ffunction-sections -fdata-sections -nostdlib -MMD -mthu
 CFLAGS =
 
 # linker options
+#LDFLAGS = -O3 -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mthumb -mcpu=cortex-m4 -T$(LDSCRIPT)
 LDFLAGS = -O3 -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -mthumb -mcpu=cortex-m4 -T$(LDSCRIPT)
 
 # additional libraries to link
 LIBS = -lm
 
 # names for the compiler programs
-CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
-CXX = $(abspath $(COMPILERPATH))/arm-none-eabi-g++
-OBJCOPY = $(abspath $(COMPILERPATH))/arm-none-eabi-objcopy
-SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
+#CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
+CC = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-gcc
+#CXX = $(abspath $(COMPILERPATH))/arm-none-eabi-g++
+CXX = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-g++
+#OBJCOPY = $(abspath $(COMPILERPATH))/arm-none-eabi-objcopy
+OBJCOPY = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-objcopy
+#SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
+SIZE = /home/evangel/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 # TODO: this does not handle Arduino libraries yet...
