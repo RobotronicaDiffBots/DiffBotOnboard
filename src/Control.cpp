@@ -39,6 +39,7 @@ enum {
 radio_message_t latestMessage;
 
 uint8_t mode;
+uint8_t oldMode;
 
 uint8_t ldem = 100;
 uint8_t rdem = 100;
@@ -117,8 +118,36 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
 
 	//Cache the message that we got. 
 	latestMessage = radioMessage;
-    // Reset error values if changing mode
-    if(mode != latestMessage.type) {
+    
+	switch (latestMessage.type) {
+	case TASK_MANUAL:
+        oldMode = mode;
+		mode = TASK_MANUAL;
+        demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+        demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+        
+		break;
+	case TASK_SPIN:
+        oldMode = mode;
+        mode = TASK_MANUAL;
+        demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+        demandedVelR = -(latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+// 		mode = TASK_MANUAL;
+// 		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
+// 		sdem = latestMessage.d3;
+// 		e_t = demandedLoc - pose[2] * 1000;
+        
+		break;
+	case TASK_DRIVE:
+		mode = TASK_DRIVE;
+
+		break;
+	default:
+		break;
+	}
+	
+	// Reset error values if changing mode
+    if(mode != oldMode) {
         p_error = 0.f;
         i_error = 0.f;
         d_error = 0.f;
@@ -131,28 +160,6 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         i_errorR = 0.f;
         d_errorR = 0.f;
     }
-    
-	switch (latestMessage.type) {
-	case TASK_MANUAL:
-		mode = TASK_MANUAL;
-        demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
-        demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
-        
-		break;
-	case TASK_SPIN:
-		mode = TASK_SPIN;
-		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
-		sdem = latestMessage.d3;
-		e_t = demandedLoc - pose[2] * 1000;
-        
-		break;
-	case TASK_DRIVE:
-		mode = TASK_DRIVE;
-
-		break;
-	default:
-		break;
-	}
 }
 
 /**
@@ -203,21 +210,33 @@ void updateLoopOnce() {
 		}
 		case TASK_SPIN:
 		{
-			int16_t currentLoc = pose[2] * 1000;
-			e_t = demandedLoc - currentLoc;
-
-			//int16_t diff = (e_t - e_t1);
-            p_error = e_t;
-            d_error = (e_t - e_t1) * IDELTAT;
+			e_tL = demandedVelL - lcount;
+            e_tR = demandedVelR - rcount;
             
-            int8_t vel = clamp(-100, 100, p_error * sk_p + i_error * sk_i + d_error * sk_d);
-			
-			ldem = 100 + vel;
-			rdem = 100 + -vel;
-
-			e_t1 = e_t;
-            i_error += e_t * DELTAT;
-			break;
+            p_errorL = e_tL;
+            p_errorR = e_tR;
+            
+            d_errorL = (e_tL - e_tL1) * IDELTAT;
+            d_errorR = (e_tR - e_tR1) * IDELTAT;
+            
+            int8_t velL = clamp(-100, 100, p_errorL * mk_p + i_errorL * mk_i + d_errorL * mk_d);
+            int8_t velR = clamp(-100, 100, p_errorR * mk_p + i_errorR * mk_i + d_errorR * mk_d);
+            
+            ldem = 100 + velL;
+            rdem = 100 + velR;
+            
+            e_tL1 = e_tL;
+            e_tR1 = e_tR;
+            
+            i_errorL += e_tL * DELTAT;
+            i_errorR += e_tR * DELTAT;
+            
+            sprintf(debugLine, "velL %d\n", velL);
+            btSerial.println(debugLine);
+            sprintf(debugLine, "velR %d\n", velR);
+            btSerial.println(debugLine);
+            
+            break;
 		}
 		case TASK_DRIVE:
         {
