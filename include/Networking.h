@@ -14,7 +14,7 @@
 #define btSerial Serial2
 #define topSerial Serial3
 
-#define xbBaud 9600
+#define xbBaud 57600
 #define btBaud 115200
 #define topBaud 9600
 /*

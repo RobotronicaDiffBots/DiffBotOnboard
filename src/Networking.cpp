@@ -33,7 +33,7 @@ int serialReader::checkRadio() {
 	unsigned long ts;
 	ts = micros();
 	isFlooded = 0;
-	uint8_t crc = 0;
+	uint8_t crc = 0xFF;
 	uint8_t *p = (uint8_t *)&radioMessage;
 	
 	//Check for bytes
