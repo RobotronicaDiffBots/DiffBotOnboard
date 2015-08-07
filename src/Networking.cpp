@@ -1,7 +1,10 @@
 #include "Networking.h"
 
-#define QBOT_ID             7              // The unique ID of the robot (0-255), 250 is global
-#define MAX_DURATION		2000			// The longest we'll try analyse incoming packets (us)
+// The unique ID of the robot (0-255), 250 is global
+#define QBOT_ID             24
+
+// The longest we'll try analyse incoming packets (us)
+#define MAX_DURATION		2000
 
 
 /**

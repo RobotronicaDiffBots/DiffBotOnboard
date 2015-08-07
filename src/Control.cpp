@@ -55,9 +55,9 @@ enum {
     FORTY_FIVE_SPIN
 };
 
-#define ONE_EIGHTY_DEGREES  ((int16_t)(PI * 1000))
-#define NINETY_DEGREES      ((int16_t)(PI * 500))
-#define FORTY_FIVE_DEGREES  ((int16_t)(PI * 250))
+#define ONE_EIGHTY_DEGREES  ((PI * 1000))
+#define NINETY_DEGREES      ((PI * 500))
+#define FORTY_FIVE_DEGREES  ((PI * 250))
 
 radio_message_t latestMessage;
 
@@ -91,13 +91,21 @@ int16_t e_tR;
 int16_t e_tL1;
 int16_t e_tR1;
 
-int16_t e_tTheta;
-int16_t e_tTheta1;
+float e_tTheta;
+float e_tTheta1;
 
 //Motor stuff
 float mk_p = 10;
 float mk_i = 5;
 float mk_d = 1;
+
+float sk_p = 1;
+float sk_i = 0.1;
+float sk_d = 0.01;
+
+float pk_p = 10;
+float pk_i = 5;
+float pk_d = 1;
 
 // Need these for straight line control
 // Pose has position but I don't want that
@@ -120,7 +128,7 @@ float p_errorTheta;
 float i_errorTheta;
 float d_errorTheta;
 
-uint16_t desiredTheta = 0;
+float desiredTheta = 0;
 
 /**
 * Process the valid incoming radio packet based on task and set the overall robot mode.
@@ -144,6 +152,11 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         case TASK_MANUAL:
             oldMode = mode;
             mode = TASK_MANUAL;
+/*            
+            pk_p = mk_p;
+            pk_i = mk_i;
+            pk_d = mk_d;*/
+            
             demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
             demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
             
@@ -151,7 +164,9 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         case TASK_SPIN:
             oldMode = mode;
             mode = TASK_SPIN;
-
+            
+            
+            
     // 		mode = TASK_MANUAL;
     // 		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
     // 		sdem = latestMessage.d3;
@@ -184,26 +199,26 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                 case (1 << COUNT_R3):
                     mode = TASK_SPIN;
                     // 45 degrees
-                    if(k & (1 << COUNT_RT))
-                        desiredTheta = (uint16_t)((pose[2] * 1000) - FORTY_FIVE_DEGREES);
+                    if(latestMessage.d4 & (1 << COUNT_RT))
+                        desiredTheta = ((pose[2] * 1000) - FORTY_FIVE_DEGREES);
                     else
-                        desiredTheta = (uint16_t)((pose[2] * 1000) + FORTY_FIVE_DEGREES);
+                        desiredTheta = ((pose[2] * 1000) + FORTY_FIVE_DEGREES);
                     break;
                 case (1 << COUNT_R2):
                     mode = TASK_SPIN;
                     // 90 degrees
-                    if(k & (1 << COUNT_RT))
-                        desiredTheta = (uint16_t)((pose[2] * 1000) - NINETY_DEGREES);
+                    if(latestMessage.d4 & (1 << COUNT_RT))
+                        desiredTheta = ((pose[2] * 1000) - NINETY_DEGREES);
                     else
-                        desiredTheta = (uint16_t)((pose[2] * 1000) + NINETY_DEGREES);
+                        desiredTheta = ((pose[2] * 1000) + NINETY_DEGREES);
                     break;
                 case (1 << COUNT_R1):
                     mode = TASK_SPIN;
                     // 180 degrees
-                    if(k & (1 << COUNT_RT))
-                        desiredTheta = (uint16_t)((pose[2] * 1000) - ONE_EIGHTY_DEGREES);
+                    if(latestMessage.d4 & (1 << COUNT_RT))
+                        desiredTheta = ((pose[2] * 1000) - ONE_EIGHTY_DEGREES);
                     else
-                        desiredTheta = (uint16_t)((pose[2] * 1000) + ONE_EIGHTY_DEGREES);
+                        desiredTheta = ((pose[2] * 1000) + ONE_EIGHTY_DEGREES);
                     break;
                 }
                 
@@ -248,8 +263,8 @@ void PID()
     d_errorL = (e_tL - e_tL1) * IDELTAT;
     d_errorR = (e_tR - e_tR1) * IDELTAT;
 
-    velL = clamp(-100, 100, p_errorL * mk_p + i_errorL * mk_i + d_errorL * mk_d);
-    velR = clamp(-100, 100, p_errorR * mk_p + i_errorR * mk_i + d_errorR * mk_d);
+    velL = clamp(-100, 100, p_errorL * pk_p + i_errorL * pk_i + d_errorL * pk_d);
+    velR = clamp(-100, 100, p_errorR * pk_p + i_errorR * pk_i + d_errorR * pk_d);
 
     ldem = 100 + velL;
     rdem = 100 + velR;
@@ -278,13 +293,17 @@ void updateLoopOnce() {
 		}
 		case TASK_SPIN:
 		{
+//            pk_p = sk_p;
+//            pk_i = sk_i;
+//            pk_d = sk_d;
+            
             e_tTheta = desiredTheta - (int16_t)(pose[2] * 1000);
             
             p_errorTheta = e_tTheta;
             
             d_errorTheta = (e_tTheta - e_tTheta1) * IDELTAT;
             
-            omega = clamp(-20, 20, p_errorTheta * mk_p + i_errorTheta * mk_i + d_errorTheta * mk_d);
+            omega = clamp(-20, 20, p_errorTheta * sk_p + i_errorTheta * sk_i + d_errorTheta * sk_d);
             demandedVelL = -omega;
             demandedVelR = omega;
             
@@ -294,7 +313,7 @@ void updateLoopOnce() {
             
             PID();
             
-            if (fabs(e_tTheta < 0.1))
+            if (fabs(e_tTheta) < 5 && fabs(omega) < 1 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
                 mode = TASK_MANUAL;
             
             break;
@@ -434,7 +453,7 @@ void calculateLocation() {
         snprintf(output, 50, "%d", (int)(desiredTheta));
         xbSerial.print("desired: ");
         xbSerial.println(output);
-        output[0] = 0;
+        /*output[0] = 0;
         snprintf(output, 50, "%d", (int)(e_tTheta));
         xbSerial.print("e_tTheta: ");
         xbSerial.println(output);
@@ -450,14 +469,14 @@ void calculateLocation() {
         snprintf(output, 50, "%d", (int)(d_errorTheta));
         xbSerial.print("d_errorTheta: ");
         xbSerial.println(output);
-        output[0] = 0;
+        */output[0] = 0;
         snprintf(output, 50, "%d", (int)(omega));
         xbSerial.print("omega: ");
         xbSerial.println(output);
-        output[0] = 0;
+        /*output[0] = 0;
         snprintf(output, 50, "%d", (int)(mode));
         xbSerial.print("mode: ");
-        xbSerial.println(output);
+        xbSerial.println(output);*/
 	}
 	
 }
