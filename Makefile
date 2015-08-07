@@ -5,6 +5,7 @@ CLOCK_RATE = 96000000
 
 # configurable options
 OPTIONS = -DUSB_SERIAL
+OPTIONS += -DQBOT_ID=$(QBOT_ID)
 
 # directory to build in
 BUILDDIR = build
