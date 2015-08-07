@@ -70,6 +70,11 @@ OBJS := $(foreach src,$(SOURCES), $(BUILDDIR)/$(src))
 
 all: hex
 
+resetid: 
+	@echo Cleaning ID related files
+	@rm -f "$(BUILDDIR)"/src/Networking.*
+	@rm -f "$(TARGET).elf" "$(TARGET).hex"
+
 build: $(TARGET).elf
 
 hex: $(TARGET).hex
