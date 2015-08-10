@@ -18,7 +18,7 @@ BUILDDIR = build
 TOOLSPATH = tools
 
 # path location for the arm-none-eabi compiler
-COMPILERPATH = tools/arm/bin
+COMPILERPATH = ~/QUT/Robotronica_2015/compiler/gcc-arm-none-eabi-4_9-2015q2-20150609/install-native/bin/
 
 COREPATH = teensy3
 LDSCRIPT = $(COREPATH)/mk20dx256.ld
@@ -46,10 +46,10 @@ LDFLAGS = -O3 -Wl,--gc-sections,--defsym=__rtc_localtime=0 --specs=nano.specs -m
 LIBS = -lm
 
 # names for the compiler programs
-CC = $(abspath $(COMPILERPATH))/arm-none-eabi-gcc
-CXX = $(abspath $(COMPILERPATH))/arm-none-eabi-g++
-OBJCOPY = $(abspath $(COMPILERPATH))/arm-none-eabi-objcopy
-SIZE = $(abspath $(COMPILERPATH))/arm-none-eabi-size
+CC = $(COMPILERPATH)/arm-none-eabi-gcc
+CXX = $(COMPILERPATH)/arm-none-eabi-g++
+OBJCOPY = $(COMPILERPATH)/arm-none-eabi-objcopy
+SIZE = $(COMPILERPATH)/arm-none-eabi-size
 
 # automatically create lists of the sources and objects
 # TODO: this does not handle Arduino libraries yet...
