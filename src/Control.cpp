@@ -25,6 +25,9 @@
 
 #define MAX_TICKS_PER_SEC 50				//May need tweaking
 
+#define COMPASS_CONSTANT 5.7433e-04
+//#define COMPASS_CONSTANT 5.6933e-04
+
 enum {
     COUNT_L6 = 0,
     COUNT_L5,
@@ -55,9 +58,9 @@ enum {
     FORTY_FIVE_SPIN
 };
 
-#define ONE_EIGHTY_DEGREES  ((PI * 1000))
-#define NINETY_DEGREES      ((PI * 500))
-#define FORTY_FIVE_DEGREES  ((PI * 250))
+#define ONE_EIGHTY_DEGREES  ((PI))
+#define NINETY_DEGREES      ((PI / 2))
+#define FORTY_FIVE_DEGREES  ((PI / 4))
 
 radio_message_t latestMessage;
 
@@ -76,6 +79,14 @@ long lcount;
 long rcount;
 uint8_t loccount = 0;
 float pose[3] = { 0 };
+
+// long lcountPers = 0;
+// long rcountPers = 0;
+
+int16_t spinCount1 = 0;
+int16_t spinCount2 = 0;
+
+float theta = 0.f;
 
 //BT stuff
 char output[50];
@@ -99,9 +110,9 @@ float mk_p = 10;
 float mk_i = 5;
 float mk_d = 1;
 
-float sk_p = 1;
-float sk_i = 0.1;
-float sk_d = 0.01;
+float sk_p = 30;
+float sk_i = 30;
+float sk_d = 20;
 
 float pk_p = 10;
 float pk_i = 5;
@@ -111,7 +122,7 @@ float pk_d = 1;
 // Pose has position but I don't want that
 float lvel;
 float rvel;
-float omega;
+int16_t omega;
 
 float p_errorL;
 float i_errorL;
@@ -128,7 +139,7 @@ float p_errorTheta;
 float i_errorTheta;
 float d_errorTheta;
 
-float desiredTheta = 0;
+float desiredTheta = 0.f;
 
 /**
 * Process the valid incoming radio packet based on task and set the overall robot mode.
@@ -152,10 +163,6 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         case TASK_MANUAL:
             oldMode = mode;
             mode = TASK_MANUAL;
-/*            
-            pk_p = mk_p;
-            pk_i = mk_i;
-            pk_d = mk_d;*/
             
             demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
             demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
@@ -164,9 +171,8 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         case TASK_SPIN:
             oldMode = mode;
             mode = TASK_SPIN;
-            
-            
-            
+            spinCount2 = 0;
+
     // 		mode = TASK_MANUAL;
     // 		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
     // 		sdem = latestMessage.d3;
@@ -188,7 +194,7 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
             {
                 switch(k) {
                 case (1 << COUNT_L6):
-                    
+                    theta = 0.f;
                     break;
                 case (1 << COUNT_L5):
                     
@@ -199,26 +205,35 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                 case (1 << COUNT_R3):
                     mode = TASK_SPIN;
                     // 45 degrees
+                    sk_p = 45;
+                    sk_i = 47;
+                    sk_d = 30;
                     if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - FORTY_FIVE_DEGREES);
+                        desiredTheta = (theta - FORTY_FIVE_DEGREES);
                     else
-                        desiredTheta = ((pose[2] * 1000) + FORTY_FIVE_DEGREES);
+                        desiredTheta = (theta + FORTY_FIVE_DEGREES);
                     break;
                 case (1 << COUNT_R2):
                     mode = TASK_SPIN;
                     // 90 degrees
+                    sk_p = 35;
+                    sk_i = 45;
+                    sk_d = 30;
                     if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - NINETY_DEGREES);
+                        desiredTheta = (theta - NINETY_DEGREES);
                     else
-                        desiredTheta = ((pose[2] * 1000) + NINETY_DEGREES);
+                        desiredTheta = (theta + NINETY_DEGREES);
                     break;
                 case (1 << COUNT_R1):
                     mode = TASK_SPIN;
                     // 180 degrees
+                    sk_p = 30;
+                    sk_i = 35;
+                    sk_d = 30;
                     if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - ONE_EIGHTY_DEGREES);
+                        desiredTheta = (theta - ONE_EIGHTY_DEGREES);
                     else
-                        desiredTheta = ((pose[2] * 1000) + ONE_EIGHTY_DEGREES);
+                        desiredTheta = (theta + ONE_EIGHTY_DEGREES);
                     break;
                 }
                 
@@ -277,7 +292,6 @@ void PID()
 }
 
 void updateLoopOnce() {
-    //char debugLine[40] = {0};
 	//First, update the motor outputs based on the mode
 	switch (mode) {
 		case TASK_IDLE:
@@ -293,17 +307,13 @@ void updateLoopOnce() {
 		}
 		case TASK_SPIN:
 		{
-//            pk_p = sk_p;
-//            pk_i = sk_i;
-//            pk_d = sk_d;
-            
-            e_tTheta = desiredTheta - (int16_t)(pose[2] * 1000);
+            e_tTheta = desiredTheta - theta;
             
             p_errorTheta = e_tTheta;
             
             d_errorTheta = (e_tTheta - e_tTheta1) * IDELTAT;
             
-            omega = clamp(-20, 20, p_errorTheta * sk_p + i_errorTheta * sk_i + d_errorTheta * sk_d);
+            omega = clamp(-10, 10, p_errorTheta * sk_p + i_errorTheta * sk_i + d_errorTheta * sk_d);
             demandedVelL = -omega;
             demandedVelR = omega;
             
@@ -313,9 +323,29 @@ void updateLoopOnce() {
             
             PID();
             
-            if (fabs(e_tTheta) < 5 && fabs(omega) < 1 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
-                mode = TASK_MANUAL;
+            if (fabs(e_tTheta) < 0.005 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            {
+                spinCount1++;
+            }
+            else
+            {
+                spinCount1 = 0;
+            }
             
+            if (spinCount1 > 10)
+            {
+                mode = TASK_MANUAL;
+            }
+            
+            if (fabs(e_tTheta) < 0.05 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            {
+                spinCount2++;
+            }
+            
+            if (spinCount2 > 20)
+            {
+                mode = TASK_MANUAL;
+            }
             break;
 		}
 		case TASK_DRIVE:
@@ -324,13 +354,12 @@ void updateLoopOnce() {
             break;
         }
 		default: //Any commands we don't care about, like TASK_LED or PNG			
-			break;
+            break;
 	}
 	if (loccount % 4 == 0)
 		calculateLocation();
 	
 	loccount++;
-    
 	//Decrement our timer counter (each count is 10ms)
 	if (counter > 0) {
 		counter--;
@@ -405,6 +434,13 @@ void calculateLocation() {
 
 	lenc.write(0);
 	renc.write(0);
+    
+//     lcountPers += lcount;
+//     rcountPers += rcount;
+    
+    float deltaTheta = (rcount - lcount) * COMPASS_CONSTANT;
+    
+    theta += deltaTheta;
 
 	float omegaVel = (rvel - lvel) / WB;
 
@@ -434,49 +470,15 @@ void calculateLocation() {
 	//}
     
     pose[2] = pose[2] + omegaVel*DELTAT;
+    
 	if (loccount % 100 == 0) {
-		/*
-		output[0] = '\0';
-		snprintf(output, 50, "%d", (int)pose[0]);
-		btSerial.print("x: ");
-		btSerial.println(output);
-		output[0] = '\0';
-		snprintf(output, 50, "%d", (int)pose[1]);
-		btSerial.print("y: ");
-		btSerial.println(output);
-		*/
-		output[0] = 0;
-		snprintf(output, 50, "%d", (int)(pose[2] * 1000));
-		xbSerial.print("millirads: ");
-		xbSerial.println(output);
+        /* Debug stuff goes here */
+        /*
         output[0] = 0;
-        snprintf(output, 50, "%d", (int)(desiredTheta));
-        xbSerial.print("desired: ");
-        xbSerial.println(output);
-        /*output[0] = 0;
-        snprintf(output, 50, "%d", (int)(e_tTheta));
-        xbSerial.print("e_tTheta: ");
-        xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(p_errorTheta));
-        xbSerial.print("p_errorTheta: ");
-        xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(i_errorTheta));
-        xbSerial.print("i_errorTheta: ");
-        xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(d_errorTheta));
-        xbSerial.print("d_errorTheta: ");
-        xbSerial.println(output);
-        */output[0] = 0;
-        snprintf(output, 50, "%d", (int)(omega));
-        xbSerial.print("omega: ");
-        xbSerial.println(output);
-        /*output[0] = 0;
         snprintf(output, 50, "%d", (int)(mode));
         xbSerial.print("mode: ");
-        xbSerial.println(output);*/
+        xbSerial.println(output);
+        */
 	}
 	
 }
