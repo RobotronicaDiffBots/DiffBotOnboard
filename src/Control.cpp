@@ -26,7 +26,7 @@
 #define MAX_TICKS_PER_SEC 50				//May need tweaking
 
 #define COMPASS_CONSTANT 5.7433e-04
-//#define COMPASS_CONSTANT 5.6933e-04
+
 
 enum {
     COUNT_L6 = 0,
@@ -112,7 +112,7 @@ float mk_d = 1;
 
 float sk_p = 30;
 float sk_i = 30;
-float sk_d = 20;
+float sk_d = 10;
 
 float pk_p = 10;
 float pk_i = 5;
@@ -407,7 +407,7 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
 	analogWrite(M2D1, 255 - rmag);
 
 	//The directions
-	if (!((abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))) {
+	if (!((abs(ldem - 100) < 2) && (abs(rdem - 100) < 2))) {
 		digitalWriteFast(M1IN1, ldem < 100);
 		digitalWriteFast(M1IN2, !(ldem < 100));
 		digitalWriteFast(M2IN1, rdem < 100);
@@ -474,7 +474,6 @@ void calculateLocation() {
 	if (loccount % 100 == 0) {
         /* Debug stuff goes here */
         /*
-        output[0] = 0;
         snprintf(output, 50, "%d", (int)(mode));
         xbSerial.print("mode: ");
         xbSerial.println(output);
