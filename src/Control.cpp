@@ -65,6 +65,7 @@ enum {
 // Has the most compounding error due to the small movement
 //#define FORTY_FIVE_DEGREES  ((PI / 4))
 #define ONE_HUNDRED_CM (100.f)
+#define BACKWARDS_ERROR_OFFSET (3.f)
 #define ONE_THOUSAND_CM (1000.f)
 
 radio_message_t latestMessage;
@@ -155,6 +156,10 @@ float d_errorDistance;
 float desiredTheta = 0.f;
 float desiredDistance = 0.f;
 
+uint32_t controlTimer;
+uint32_t controlTimeout;
+uint32_t lastActionTime;
+
 /**
 * Process the valid incoming radio packet based on task and set the overall robot mode.
 * Note that the mapping between radio sent modes may be different to onboard robot modes.
@@ -232,23 +237,33 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                     oldMode = mode;
                     mode = TASK_DRIVE;
                     spinCount2 = 0;
+                    controlTimer = millis();
+                    controlTimeout = 3800;
                     
                     // Reset theta to be in the range of -2PI <= theta <= 2PI
                     distance = fmod(distance, ONE_THOUSAND_CM);
                     
                     // 100cm
-                    sk_p = 20;
-                    sk_i = 0.05;
-                    sk_d = 20;
+                    sk_p = 60;
+                    sk_i = 0.02;
+                    sk_d = 100;
                     if(latestMessage.d4 & (1 << COUNT_RT))
+                    {
+                        // backwards
                         desiredDistance = (distance + ONE_HUNDRED_CM);
+                    }
                     else
+                    {
+                        // forwards
                         desiredDistance = (distance - ONE_HUNDRED_CM);
+                    }
                     break;
                 case (1 << COUNT_R2):
                     oldMode = mode;
                     mode = TASK_SPIN;
                     spinCount2 = 0;
+                    controlTimer = millis();
+                    controlTimeout = 1500;
                     
                     // Reset theta to be in the range of -2PI <= theta <= 2PI
                     theta = fmod(theta, PI);
@@ -258,14 +273,20 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                     sk_i = 45;
                     sk_d = 30;
                     if(latestMessage.d4 & (1 << COUNT_RT))
+                    {
                         desiredTheta = (theta - NINETY_DEGREES);
+                    }
                     else
+                    {
                         desiredTheta = (theta + NINETY_DEGREES);
+                    }
                     break;
                 case (1 << COUNT_R1):
                     oldMode = mode;
                     mode = TASK_SPIN;
                     spinCount2 = 0;
+                    controlTimer = millis();
+                    controlTimeout = 2000;
                     
                     // Reset theta to be in the range of -2PI <= theta <= 2PI
                     theta = fmod(theta, PI);
@@ -275,9 +296,13 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                     sk_i = 35;
                     sk_d = 30;
                     if(latestMessage.d4 & (1 << COUNT_RT))
+                    {
                         desiredTheta = (theta - ONE_EIGHTY_DEGREES);
+                    }
                     else
+                    {
                         desiredTheta = (theta + ONE_EIGHTY_DEGREES);
+                    }
                     break;
                 }
                 
@@ -298,6 +323,10 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
         p_errorR = 0.f;
         i_errorR = 0.f;
         d_errorR = 0.f;
+        
+        p_errorDistance = 0.f;
+        i_errorDistance = 0.f;
+        d_errorDistance = 0.f;
     }
 }
 
@@ -305,8 +334,6 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
 * Execute one time step of the action/task state machine. Do not use while loops or delays here.
 * Trying to keep the system semi-concurrent.
 */
-
-// int ledVal = 0;
 
 void PID()
 {
@@ -367,7 +394,7 @@ void updateLoopOnce() {
             
             PID();
             
-            if (fabs(e_tTheta) < 0.005 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            if (fabs(e_tTheta) < 0.05 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
             {
                 spinCount1++;
             }
@@ -376,13 +403,14 @@ void updateLoopOnce() {
                 spinCount1 = 0;
             }
             
-            if (fabs(e_tTheta) < 0.05 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            if (fabs(e_tTheta) < 0.05f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
             {
                 spinCount2++;
             }
             
-            if (spinCount2 > 20 || spinCount1 > 10)
+            if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
             {
+                lastActionTime = millis() - controlTimer;
                 mode = TASK_MANUAL;
             }
             break;
@@ -419,8 +447,9 @@ void updateLoopOnce() {
                 spinCount2++;
             }
             
-            if (spinCount2 > 20 || spinCount1 > 10)
+            if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
             {
+                lastActionTime = millis() - controlTimer;
                 mode = TASK_MANUAL;
             }
             break;
@@ -546,10 +575,11 @@ void calculateLocation() {
 	//}
     
 //     pose[2] = pose[2] + omegaVel*DELTAT;
-    
+
+#ifdef DEBUG
 	if (loccount % 100 == 0) {
         /* Debug stuff goes here */
-        output[0] = 0;
+        /*output[0] = 0;
         switch(mode)
         {
             case TASK_MANUAL:
@@ -561,25 +591,23 @@ void calculateLocation() {
             case TASK_DRIVE:
                 snprintf(output, 50, "TASK_DRIVE");
                 break;
+            default:
+                snprintf(output, 50, "Unknown state");
+                break;
         }
         xbSerial.print("mode: ");
         xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "%d", (int)(distance * 1000));
-        xbSerial.print("distance: ");
+        snprintf(output, 50, "%lu", controlTimer);
+        xbSerial.print("controlTimer: ");
         xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "%d", (int)(desiredDistance * 1000));
-        xbSerial.print("desDistance: ");
-        xbSerial.println(output);
+        snprintf(output, 50, "%lu", millis());
+        xbSerial.print("millis(): ");
+        xbSerial.println(output);*/
         output[0] = 0;
-        snprintf(output, 50, "%d", (int)(e_tDistance * 1000));
-        xbSerial.print("e_tDistance: ");
-        xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(omega * 1000));
-        xbSerial.print("omega: ");
+        snprintf(output, 50, "\n%lu", e_tDistance);
         xbSerial.println(output);
 	}
-	
+#endif
 }

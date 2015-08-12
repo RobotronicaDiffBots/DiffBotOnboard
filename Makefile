@@ -79,6 +79,9 @@ build: $(TARGET).elf
 
 hex: $(TARGET).hex
 
+debug: OPTIONS += -DDEBUG
+debug: $(TARGET).hex
+
 post_compile: $(TARGET).hex
 	@$(abspath $(TOOLSPATH))/teensy_post_compile -file="$(basename $<)" -path=$(CURDIR) -tools="$(abspath $(TOOLSPATH))"
 

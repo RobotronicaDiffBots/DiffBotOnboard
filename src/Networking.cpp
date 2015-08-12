@@ -67,7 +67,6 @@ int serialReader::checkRadio() {
 		case MSG_QBOT_ID:
 			radioMessage.robotID = radioMessage.nextByte;
 			if ((radioMessage.robotID == QBOT_ID) || (radioMessage.robotID == 250)) {
-                radioMessage.robotID = QBOT_ID;
 				radioMessage.mode = MSG_TYPE;
 			}
 			else {
@@ -121,6 +120,11 @@ int serialReader::checkRadio() {
 			radioMessage.mode = MSG_SYNC_0;
 			if (radioMessage.crc == crc) {
 				t_lastpacket = millis();
+                if (radioMessage.robotID == 250)
+                {
+                    radioMessage.robotID = QBOT_ID;
+                    radioMessage.crc ^= 250 ^ QBOT_ID;
+                }
 				return 1;
 			}
 			else {
