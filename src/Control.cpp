@@ -209,104 +209,106 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
             break;
         }
         
-        for(int j = 0; j < 8; j++)
-        {
-            int k = latestMessage.d4 & (1 << j);
-            if(k)
+        if (latestMessage.type <= 5) {
+            for(int j = 0; j < 8; j++)
             {
-                switch(k) {
-                case (1 << COUNT_L6):
-                    theta = 0.f;
-                    distance = 0.f;
-                    break;
-                case (1 << COUNT_L5):
-                    
-                    break;
-                case (1 << COUNT_L4):
-                    
-                    break;
-                case (1 << COUNT_R3):
-                    // 45 degrees
-//                     sk_p = 35;
-//                     sk_i = 45;
-//                     sk_d = 30;
-//                     if(latestMessage.d4 & (1 << COUNT_RT))
-//                         desiredTheta = (theta - FORTY_FIVE_DEGREES);
-//                     else
-//                         desiredTheta = (theta + FORTY_FIVE_DEGREES);
-                    oldMode = mode;
-                    mode = TASK_DRIVE;
-                    spinCount2 = 0;
-                    controlTimer = millis();
-                    controlTimeout = 3800;
-                    
-                    // Reset theta to be in the range of -2PI <= theta <= 2PI
-                    distance = fmod(distance, ONE_THOUSAND_CM);
-                    
-                    // 100cm
-                    sk_p = 60;
-                    sk_i = 0.02;
-                    sk_d = 100;
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                    {
-                        // backwards
-                        desiredDistance = (distance + ONE_HUNDRED_CM);
+                int k = latestMessage.d4 & (1 << j);
+                if(k)
+                {
+                    switch(k) {
+                    case (1 << COUNT_L6):
+                        theta = 0.f;
+                        distance = 0.f;
+                        break;
+                    case (1 << COUNT_L5):
+                        
+                        break;
+                    case (1 << COUNT_L4):
+                        
+                        break;
+                    case (1 << COUNT_R3):
+                        // 45 degrees
+    //                     sk_p = 35;
+    //                     sk_i = 45;
+    //                     sk_d = 30;
+    //                     if(latestMessage.d4 & (1 << COUNT_RT))
+    //                         desiredTheta = (theta - FORTY_FIVE_DEGREES);
+    //                     else
+    //                         desiredTheta = (theta + FORTY_FIVE_DEGREES);
+                        oldMode = mode;
+                        mode = TASK_DRIVE;
+                        spinCount2 = 0;
+                        controlTimer = millis();
+                        controlTimeout = 3800;
+                        
+                        // Reset theta to be in the range of -2PI <= theta <= 2PI
+                        distance = fmod(distance, ONE_THOUSAND_CM);
+                        
+                        // 100cm
+                        sk_p = 60;
+                        sk_i = 0.02;
+                        sk_d = 100;
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                        {
+                            // backwards
+                            desiredDistance = (distance + ONE_HUNDRED_CM);
+                        }
+                        else
+                        {
+                            // forwards
+                            desiredDistance = (distance - ONE_HUNDRED_CM);
+                        }
+                        break;
+                    case (1 << COUNT_R2):
+                        oldMode = mode;
+                        mode = TASK_SPIN;
+                        spinCount2 = 0;
+                        controlTimer = millis();
+                        controlTimeout = 1500;
+                        
+                        // Reset theta to be in the range of -2PI <= theta <= 2PI
+                        theta = fmod(theta, PI);
+                        
+                        // 90 degrees
+                        sk_p = 35;
+                        sk_i = 45;
+                        sk_d = 30;
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                        {
+                            desiredTheta = (theta - NINETY_DEGREES);
+                        }
+                        else
+                        {
+                            desiredTheta = (theta + NINETY_DEGREES);
+                        }
+                        break;
+                    case (1 << COUNT_R1):
+                        oldMode = mode;
+                        mode = TASK_SPIN;
+                        spinCount2 = 0;
+                        controlTimer = millis();
+                        controlTimeout = 2000;
+                        
+                        // Reset theta to be in the range of -2PI <= theta <= 2PI
+                        theta = fmod(theta, PI);
+                        
+                        // 180 degrees
+                        sk_p = 30;
+                        sk_i = 35;
+                        sk_d = 30;
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                        {
+                            desiredTheta = (theta - ONE_EIGHTY_DEGREES);
+                        }
+                        else
+                        {
+                            desiredTheta = (theta + ONE_EIGHTY_DEGREES);
+                        }
+                        break;
                     }
-                    else
-                    {
-                        // forwards
-                        desiredDistance = (distance - ONE_HUNDRED_CM);
-                    }
-                    break;
-                case (1 << COUNT_R2):
-                    oldMode = mode;
-                    mode = TASK_SPIN;
-                    spinCount2 = 0;
-                    controlTimer = millis();
-                    controlTimeout = 1500;
                     
-                    // Reset theta to be in the range of -2PI <= theta <= 2PI
-                    theta = fmod(theta, PI);
-                    
-                    // 90 degrees
-                    sk_p = 35;
-                    sk_i = 45;
-                    sk_d = 30;
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                    {
-                        desiredTheta = (theta - NINETY_DEGREES);
-                    }
-                    else
-                    {
-                        desiredTheta = (theta + NINETY_DEGREES);
-                    }
-                    break;
-                case (1 << COUNT_R1):
-                    oldMode = mode;
-                    mode = TASK_SPIN;
-                    spinCount2 = 0;
-                    controlTimer = millis();
-                    controlTimeout = 2000;
-                    
-                    // Reset theta to be in the range of -2PI <= theta <= 2PI
-                    theta = fmod(theta, PI);
-                    
-                    // 180 degrees
-                    sk_p = 30;
-                    sk_i = 35;
-                    sk_d = 30;
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                    {
-                        desiredTheta = (theta - ONE_EIGHTY_DEGREES);
-                    }
-                    else
-                    {
-                        desiredTheta = (theta + ONE_EIGHTY_DEGREES);
-                    }
                     break;
                 }
-                
-                break;
             }
         }
     }
