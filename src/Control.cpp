@@ -181,48 +181,50 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
             break;
         }
         
-        for(int j = 0; j < 8; j++)
-        {
-            int k = latestMessage.d4 & (1 << j);
-            if(k)
+        if (latestMessage.type <= 5) {
+            for(int j = 0; j < 8; j++)
             {
-                switch(k) {
-                case (1 << COUNT_L6):
+                int k = latestMessage.d4 & (1 << j);
+                if(k)
+                {
+                    switch(k) {
+                    case (1 << COUNT_L6):
                     
-                    break;
-                case (1 << COUNT_L5):
+                        break;
+                    case (1 << COUNT_L5):
                     
-                    break;
-                case (1 << COUNT_L4):
+                        break;
+                    case (1 << COUNT_L4):
                     
-                    break;
-                case (1 << COUNT_R3):
-                    mode = TASK_SPIN;
-                    // 45 degrees
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - FORTY_FIVE_DEGREES);
-                    else
-                        desiredTheta = ((pose[2] * 1000) + FORTY_FIVE_DEGREES);
-                    break;
-                case (1 << COUNT_R2):
-                    mode = TASK_SPIN;
-                    // 90 degrees
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - NINETY_DEGREES);
-                    else
-                        desiredTheta = ((pose[2] * 1000) + NINETY_DEGREES);
-                    break;
-                case (1 << COUNT_R1):
-                    mode = TASK_SPIN;
-                    // 180 degrees
-                    if(latestMessage.d4 & (1 << COUNT_RT))
-                        desiredTheta = ((pose[2] * 1000) - ONE_EIGHTY_DEGREES);
-                    else
-                        desiredTheta = ((pose[2] * 1000) + ONE_EIGHTY_DEGREES);
+                        break;
+                    case (1 << COUNT_R3):
+                        mode = TASK_SPIN;
+                        // 45 degrees
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                            desiredTheta = ((pose[2] * 1000) - FORTY_FIVE_DEGREES);
+                        else
+                            desiredTheta = ((pose[2] * 1000) + FORTY_FIVE_DEGREES);
+                        break;
+                    case (1 << COUNT_R2):
+                        mode = TASK_SPIN;
+                        // 90 degrees
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                            desiredTheta = ((pose[2] * 1000) - NINETY_DEGREES);
+                        else
+                            desiredTheta = ((pose[2] * 1000) + NINETY_DEGREES);
+                        break;
+                    case (1 << COUNT_R1):
+                        mode = TASK_SPIN;
+                        // 180 degrees
+                        if(latestMessage.d4 & (1 << COUNT_RT))
+                            desiredTheta = ((pose[2] * 1000) - ONE_EIGHTY_DEGREES);
+                        else
+                            desiredTheta = ((pose[2] * 1000) + ONE_EIGHTY_DEGREES);
+                        break;
+                    }
+                
                     break;
                 }
-                
-                break;
             }
         }
     }
@@ -293,9 +295,6 @@ void updateLoopOnce() {
 		}
 		case TASK_SPIN:
 		{
-//            pk_p = sk_p;
-//            pk_i = sk_i;
-//            pk_d = sk_d;
             
             e_tTheta = desiredTheta - (int16_t)(pose[2] * 1000);
             
@@ -479,4 +478,8 @@ void calculateLocation() {
         xbSerial.println(output);*/
 	}
 	
+}
+
+void setIdle() {
+	mode = TASK_IDLE;
 }
