@@ -613,3 +613,7 @@ void calculateLocation() {
 	}
 #endif
 }
+
+void setIdle() {
+	mode = TASK_IDLE;
+}

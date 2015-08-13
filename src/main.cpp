@@ -60,10 +60,10 @@ void mainloop() {
 		//Check when we last got a valid packet 
 		//If too long, stop the robot and set a status output
 		uint32_t lastValid = max(btReader.lastValid(), xbReader.lastValid());
-		if ((previousMillis - lastValid) >= 2000) {
+		if ((previousMillis - lastValid) >= 800) {
 			setLED(NO_MSGS, 1);
 			setRGBLED(BAD);
-			//setIdle();
+			setIdle();
 		}
 		/* This is where all the main action/tasks take place. DO NOT use while loops or delays */
 		updateLoopOnce();
@@ -79,7 +79,7 @@ extern "C" int main() {
 	}
 	setLED(NO_BATT, 1);
 	setRGBLED(BAD);
-	//setIdle();
+	setIdle();
 	updateLoopOnce();
 	updateLEDs();
 	
