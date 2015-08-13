@@ -452,6 +452,8 @@ void updateLoopOnce() {
             if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
             {
                 lastActionTime = millis() - controlTimer;
+                demandedVelL = 0;
+                demandedVelR = 0;
                 mode = TASK_MANUAL;
             }
             break;
