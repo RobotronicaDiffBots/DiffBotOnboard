@@ -17,6 +17,7 @@
 #define xbBaud 57600
 #define btBaud 115200
 #define topBaud 9600
+
 /*
 * Packet Structure (10 Bytes):
 *      hdr0        - First sync byte 0xAA

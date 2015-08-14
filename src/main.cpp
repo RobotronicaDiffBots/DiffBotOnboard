@@ -65,6 +65,9 @@ void mainloop() {
 			setRGBLED(BAD);
 			setIdle();
 		}
+		else {
+            clearIdle();
+        }
 		/* This is where all the main action/tasks take place. DO NOT use while loops or delays */
 		updateLoopOnce();
 		updateLEDs();

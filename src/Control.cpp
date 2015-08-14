@@ -28,16 +28,15 @@
 //#define COMPASS_CONSTANT 5.7433e-04
 #define COMPASS_CONSTANT 5.7423e-04
 
-
 enum {
     COUNT_L6 = 0,
-    COUNT_L5,
-    COUNT_L4,
-    COUNT_LT,
-    COUNT_R3,
-    COUNT_R2,
-    COUNT_R1,
-    COUNT_RT
+    COUNT_L5, // 1
+    COUNT_L4, // 2
+    COUNT_LT, // 3
+    COUNT_R3, // 4
+    COUNT_R2, // 5
+    COUNT_R1, // 6
+    COUNT_RT  // 7
 };
 
 // Robot modes
@@ -67,6 +66,8 @@ enum {
 #define ONE_HUNDRED_CM (100.f)
 #define BACKWARDS_ERROR_OFFSET (3.f)
 #define ONE_THOUSAND_CM (1000.f)
+
+#define IDLE_TIMEOUT (2000)
 
 radio_message_t latestMessage;
 
@@ -159,6 +160,9 @@ float desiredDistance = 0.f;
 uint32_t controlTimer;
 uint32_t controlTimeout;
 uint32_t lastActionTime;
+
+int8_t idleFlag = 0;
+uint32_t idleTimer = 0;
 
 /**
 * Process the valid incoming radio packet based on task and set the overall robot mode.
@@ -365,13 +369,30 @@ void PID()
 }
 
 void updateLoopOnce() {
+    // If we've received a message recently, update the timeout for braking
+    if (idleFlag)
+    {
+        mode = TASK_IDLE;
+        demandedVelL = 0;
+        demandedVelR = 0;
+    }
+    else {
+        idleTimer = millis();
+        demandedVelL = 0;
+        demandedVelR = 0;
+    }
+    
 	//First, update the motor outputs based on the mode
 	switch (mode) {
 		case TASK_IDLE:
-			ldem = 100;
-			rdem = 100;
+        {
+            //ldem = 100;
+            //rdem = 100;
+			demandedVelL = 0;
+            demandedVelR = 0;
+            PID();
 			break;
-
+        }
 		case TASK_MANUAL:
 		{
             PID();
@@ -394,9 +415,7 @@ void updateLoopOnce() {
             
             i_errorTheta += e_tTheta * DELTAT;
             
-            PID();
-            
-            if (fabs(e_tTheta) < 0.05 && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            if (fabs(e_tTheta) < 0.05f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
             {
                 spinCount1++;
             }
@@ -410,11 +429,16 @@ void updateLoopOnce() {
                 spinCount2++;
             }
             
+            // If we're close enough for a period of time, or we've taken too long, stop the motors and revert to manual control
             if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
             {
                 lastActionTime = millis() - controlTimer;
+                demandedVelL = 0;
+                demandedVelR = 0;
                 mode = TASK_MANUAL;
             }
+            
+            PID();
             break;
 		}
 		case TASK_DRIVE:
@@ -452,6 +476,8 @@ void updateLoopOnce() {
             if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
             {
                 lastActionTime = millis() - controlTimer;
+                demandedVelL = 0;
+                demandedVelR = 0;
                 mode = TASK_MANUAL;
             }
             break;
@@ -469,7 +495,7 @@ void updateLoopOnce() {
 		if (!counter) {
 			ldem = 100;
 			rdem = 100;
-			mode = TASK_IDLE;
+			idleFlag = 1;
 		}
     }
     
@@ -505,18 +531,27 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
 	int lmag = abs(ldem-100) * 2.55;
 	int rmag = abs(rdem-100) * 2.55;
 
-
-	//Set the pwm outputs
-	analogWrite(M1D1, 255 - lmag);
-	analogWrite(M2D1, 255 - rmag);
-
 	//The directions
-	if (!((abs(ldem - 100) < 2) && (abs(rdem - 100) < 2))) {
-		digitalWriteFast(M1IN1, ldem < 100);
-		digitalWriteFast(M1IN2, !(ldem < 100));
-		digitalWriteFast(M2IN1, rdem < 100);
-		digitalWriteFast(M2IN2, !(rdem < 100));
+    // If the motor does not have very small speed values, or IDLE_TIMEOUT ms have passed since we received a valid message and finished our action
+	if ((millis() - idleTimer) > IDLE_TIMEOUT) {
+        digitalWriteFast(M1IN1, LOW);
+        digitalWriteFast(M1IN2, LOW);
+        digitalWriteFast(M2IN1, LOW);
+        digitalWriteFast(M2IN2, LOW);
+        //Set the pwm outputs
+        analogWrite(M1D1, 0);
+        analogWrite(M2D1, 0);
 	}
+	else if (!((abs(ldem - 100) < 2) && (abs(rdem - 100) < 2))) {
+        digitalWriteFast(M1IN1, ldem < 100);
+        digitalWriteFast(M1IN2, !(ldem < 100));
+        digitalWriteFast(M2IN1, rdem < 100);
+        digitalWriteFast(M2IN2, !(rdem < 100));
+        //Set the pwm outputs
+        analogWrite(M1D1, 255 - lmag);
+        analogWrite(M2D1, 255 - rmag);
+    }
+	// Just finished our action, or have received no valid message and 100ms has not passed
 	else {
         i_errorL = 0.f;
         i_errorR = 0.f;
@@ -526,6 +561,9 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
 		digitalWriteFast(M1IN2, HIGH);
 		digitalWriteFast(M2IN1, HIGH);
 		digitalWriteFast(M2IN2, HIGH);
+        //Set the pwm outputs
+        analogWrite(M1D1, 255);
+        analogWrite(M2D1, 255);
 	}
 }
 
@@ -581,9 +619,12 @@ void calculateLocation() {
 #ifdef DEBUG
 	if (loccount % 100 == 0) {
         /* Debug stuff goes here */
-        /*output[0] = 0;
+        output[0] = 0;
         switch(mode)
         {
+            case TASK_IDLE:
+                snprintf(output, 50, "TASK_IDLE");
+                break;
             case TASK_MANUAL:
                 snprintf(output, 50, "TASK_MANUAL");
                 break;
@@ -600,20 +641,25 @@ void calculateLocation() {
         xbSerial.print("mode: ");
         xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "%lu", controlTimer);
-        xbSerial.print("controlTimer: ");
+        snprintf(output, 50, "%d", (int)(desiredTheta * 1000));
+        xbSerial.print("desiredTheta: ");
         xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "%lu", millis());
-        xbSerial.print("millis(): ");
-        xbSerial.println(output);*/
+        snprintf(output, 50, "%d", (int)(e_tTheta * 1000));
+        xbSerial.print("e_tTheta: ");
+        xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "\n%lu", e_tDistance);
+        snprintf(output, 50, "%d", (int)(theta * 1000));
+        xbSerial.print("theta: ");
         xbSerial.println(output);
 	}
 #endif
 }
 
 void setIdle() {
-	mode = TASK_IDLE;
+    idleFlag = 1;
+}
+
+void clearIdle() {
+    idleFlag = 0;
 }
