@@ -17,7 +17,7 @@
 //Physical constants
 #define WB 0.285							//Wheelbase length
 #define WD 0.1
-#define DELTAT 0.04
+#define DELTAT 0.01
 #define IDELTAT (1 / DELTAT)
 //#define IDELTAT 25
 
@@ -26,17 +26,17 @@
 #define MAX_TICKS_PER_SEC 50				//May need tweaking
 
 //#define COMPASS_CONSTANT 5.7433e-04
-#define COMPASS_CONSTANT 5.7423e-04
+#define COMPASS_CONSTANT 5.7413e-04
 
 enum {
-    COUNT_L6 = 0,
-    COUNT_L5, // 1
-    COUNT_L4, // 2
-    COUNT_LT, // 3
-    COUNT_R3, // 4
-    COUNT_R2, // 5
-    COUNT_R1, // 6
-    COUNT_RT  // 7
+    COUNT_L6 = 0, // 0x01
+    COUNT_L5, // 1,  0x02
+    COUNT_L4, // 2,  0x04
+    COUNT_LT, // 3,  0x08
+    COUNT_R3, // 4,  0x10
+    COUNT_R2, // 5,  0x20
+    COUNT_R1, // 6,  0x40
+    COUNT_RT  // 7,  0x80
 };
 
 // Robot modes
@@ -69,13 +69,15 @@ enum {
 
 #define IDLE_TIMEOUT (2000)
 
+#define UNDO_SCALING_FACTOR (1 / 0.4f)
+
 radio_message_t latestMessage;
 
 uint8_t mode;
 uint8_t oldMode;
 
-uint8_t ldem = 100;
-uint8_t rdem = 100;
+int16_t ldem = 100;
+int16_t rdem = 100;
 
 uint16_t counter;
 
@@ -86,9 +88,6 @@ long lcount;
 long rcount;
 uint8_t loccount = 0;
 float pose[3] = { 0 };
-
-// long lcountPers = 0;
-// long rcountPers = 0;
 
 int16_t spinCount1 = 0;
 int16_t spinCount2 = 0;
@@ -125,9 +124,9 @@ float sk_p = 30;
 float sk_i = 30;
 float sk_d = 10;
 
-float pk_p = 10;
-float pk_i = 5;
-float pk_d = 1;
+float pk_p = 4.5;
+float pk_i = 1.2;
+float pk_d = 0.02;
 
 // Need these for straight line control
 // Pose has position but I don't want that
@@ -181,23 +180,26 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
 
 	//Cache the message that we got. 
 	latestMessage = radioMessage;
-    if (mode != TASK_SPIN && mode != TASK_DRIVE) {
+    if (mode != TASK_SPIN/* && mode != TASK_DRIVE*/) {
         switch (latestMessage.type) {
         case TASK_MANUAL:
             oldMode = mode;
             mode = TASK_MANUAL;
             
-            demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
-            demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+//             demandedVelL = (latestMessage.d1 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+//             demandedVelR = (latestMessage.d2 - 100) * 0.01 * MAX_TICKS_PER_SEC;
+            // Multiply by UNDO_SCALING_FACTOR to undo scaling (to a degree) from controller
+            demandedVelL = (latestMessage.d1 - 100) * UNDO_SCALING_FACTOR;
+            demandedVelR = (latestMessage.d2 - 100) * UNDO_SCALING_FACTOR;
             
             break;
         case TASK_SPIN:
-            /*oldMode = mode;
+            oldMode = mode;
             mode = TASK_SPIN;
             spinCount2 = 0;
             
             // Reset theta to be in the range of -2PI <= theta <= 2PI
-            theta = fmod(theta, PI);*/
+            theta = fmod(theta, PI);
             
     // 		mode = TASK_MANUAL;
     // 		demandedLoc = pose[2] * 1000 + (int16_t)((latestMessage.d1 << 8) | (latestMessage.d2 & 0xFF));
@@ -221,8 +223,8 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                 {
                     switch(k) {
                     case (1 << COUNT_L6):
-                        theta = 0.f;
-                        distance = 0.f;
+//                         theta = 0.f;
+//                         distance = 0.f;
                         break;
                     case (1 << COUNT_L5):
                         
@@ -232,21 +234,9 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                         break;
                     case (1 << COUNT_R3):
                         // 45 degrees
-    //                     sk_p = 35;
-    //                     sk_i = 45;
-    //                     sk_d = 30;
-    //                     if(latestMessage.d4 & (1 << COUNT_RT))
-    //                         desiredTheta = (theta - FORTY_FIVE_DEGREES);
-    //                     else
-    //                         desiredTheta = (theta + FORTY_FIVE_DEGREES);
-                        oldMode = mode;
-                        mode = TASK_DRIVE;
-                        spinCount2 = 0;
+                        /*oldMode = mode;
                         controlTimer = millis();
                         controlTimeout = 3800;
-                        
-                        // Reset theta to be in the range of -2PI <= theta <= 2PI
-                        distance = fmod(distance, ONE_THOUSAND_CM);
                         
                         // 100cm
                         sk_p = 60;
@@ -261,22 +251,16 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                         {
                             // forwards
                             desiredDistance = (distance - ONE_HUNDRED_CM);
-                        }
+                        }*/
                         break;
                     case (1 << COUNT_R2):
-                        oldMode = mode;
-                        mode = TASK_SPIN;
-                        spinCount2 = 0;
                         controlTimer = millis();
                         controlTimeout = 1500;
                         
-                        // Reset theta to be in the range of -2PI <= theta <= 2PI
-                        theta = fmod(theta, PI);
-                        
                         // 90 degrees
-                        sk_p = 35;
-                        sk_i = 45;
-                        sk_d = 30;
+                        sk_p = 150;
+                        sk_i = 100;
+                        sk_d = 1;
                         if(latestMessage.d4 & (1 << COUNT_RT))
                         {
                             desiredTheta = (theta - NINETY_DEGREES);
@@ -287,19 +271,16 @@ void processPacket(radio_message_t radioMessage, Stream* stream) {
                         }
                         break;
                     case (1 << COUNT_R1):
-                        oldMode = mode;
-                        mode = TASK_SPIN;
-                        spinCount2 = 0;
                         controlTimer = millis();
                         controlTimeout = 2000;
                         
-                        // Reset theta to be in the range of -2PI <= theta <= 2PI
-                        theta = fmod(theta, PI);
-                        
                         // 180 degrees
-                        sk_p = 30;
-                        sk_i = 35;
-                        sk_d = 30;
+//                         sk_p = 100;
+//                         sk_i = 2;
+//                         sk_d = 0.02;
+                        sk_p = 100;
+                        sk_i = 30;
+                        sk_d = 1;
                         if(latestMessage.d4 & (1 << COUNT_RT))
                         {
                             desiredTheta = (theta - ONE_EIGHTY_DEGREES);
@@ -360,7 +341,7 @@ void PID()
 
     ldem = 100 + velL;
     rdem = 100 + velR;
-
+    
     e_tL1 = e_tL;
     e_tR1 = e_tR;
 
@@ -370,24 +351,21 @@ void PID()
 
 void updateLoopOnce() {
     // If we've received a message recently, update the timeout for braking
-    if (idleFlag)
+    if (idleFlag && mode != TASK_SPIN)
     {
+        oldMode = mode;
         mode = TASK_IDLE;
         demandedVelL = 0;
         demandedVelR = 0;
     }
     else {
         idleTimer = millis();
-        demandedVelL = 0;
-        demandedVelR = 0;
     }
     
 	//First, update the motor outputs based on the mode
 	switch (mode) {
 		case TASK_IDLE:
         {
-            //ldem = 100;
-            //rdem = 100;
 			demandedVelL = 0;
             demandedVelR = 0;
             PID();
@@ -407,7 +385,7 @@ void updateLoopOnce() {
             
             d_errorTheta = (e_tTheta - e_tTheta1) * IDELTAT;
             
-            omega = clamp(-10, 10, p_errorTheta * sk_p + i_errorTheta * sk_i + d_errorTheta * sk_d);
+            omega = clamp(-50, 50, p_errorTheta * sk_p + i_errorTheta * sk_i + d_errorTheta * sk_d);
             demandedVelL = -omega;
             demandedVelR = omega;
             
@@ -424,17 +402,18 @@ void updateLoopOnce() {
                 spinCount1 = 0;
             }
             
-            if (fabs(e_tTheta) < 0.05f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
+            if (fabs(e_tTheta) < 0.1f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
             {
                 spinCount2++;
             }
             
             // If we're close enough for a period of time, or we've taken too long, stop the motors and revert to manual control
-            if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
+            if (spinCount1 > 10 || spinCount2 > 20 || (millis() - controlTimer) > controlTimeout)
             {
                 lastActionTime = millis() - controlTimer;
                 demandedVelL = 0;
                 demandedVelR = 0;
+                oldMode = mode;
                 mode = TASK_MANUAL;
             }
             
@@ -442,63 +421,15 @@ void updateLoopOnce() {
             break;
 		}
 		case TASK_DRIVE:
-        {
-            e_tDistance = desiredDistance - distance;
-            
-            p_errorDistance = e_tDistance;
-            
-            d_errorDistance = (e_tDistance - e_tDistance1) * IDELTAT;
-            
-            omega = clamp(-10, 10, p_errorDistance * sk_p + i_errorDistance * sk_i + d_errorDistance * sk_d);
-            demandedVelL = omega;
-            demandedVelR = omega;
-            
-            e_tDistance1 = e_tDistance;
-            
-            i_errorDistance += e_tDistance * DELTAT;
-            
-            PID();
-            
-            if (fabs(e_tDistance) < 0.5f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
-            {
-                spinCount1++;
-            }
-            else
-            {
-                spinCount1 = 0;
-            }
-            
-            if (fabs(e_tDistance) < 1.f && abs(omega) < 2 && (abs(ldem - 100) < 5) && (abs(rdem - 100) < 5))
-            {
-                spinCount2++;
-            }
-            
-            if (spinCount2 > 20 || spinCount1 > 10 || (millis() - controlTimer) > controlTimeout)
-            {
-                lastActionTime = millis() - controlTimer;
-                demandedVelL = 0;
-                demandedVelR = 0;
-                mode = TASK_MANUAL;
-            }
             break;
-        }
-		default: //Any commands we don't care about, like TASK_LED or PNG			
+		default: //Any commands we don't care about, like TASK_LED or PNG
             break;
 	}
-	if (loccount % 4 == 0)
-		calculateLocation();
+	
+    calculateLocation();
 	
 	loccount++;
-	//Decrement our timer counter (each count is 10ms)
-	if (counter > 0) {
-		counter--;
-		if (!counter) {
-			ldem = 100;
-			rdem = 100;
-			idleFlag = 1;
-		}
-    }
-    
+	
 	setMotors(ldem, rdem);
 }
 
@@ -521,42 +452,53 @@ void setupMotors() {
 
 // Sets the actual motor outputs based upon the demands passed
 // Expects values between 0 and 200 for each motor, 100 is float
-void setMotors(uint8_t ldem, uint8_t rdem) {
+void setMotors(int16_t lmot, int16_t rmot) {
 	//Check bounds
-	if (ldem > 200 || rdem > 200) {
+	if (lmot > 200 || rmot > 200) {
 		return;	//bad values, nothing to do
 	}
 
 	//The magnitudes
-	int lmag = abs(ldem-100) * 2.55;
-	int rmag = abs(rdem-100) * 2.55;
-
+	int lmag = abs(lmot-100) * 2.55;
+	int rmag = abs(rmot-100) * 2.55;
+    /*
+    xbSerial.println("setMotors()");
+    output[0] = 0;
+    snprintf(output, 50, "%d", lmot);
+    xbSerial.print("lmot: ");
+    xbSerial.println(output);
+    output[0] = 0;
+    snprintf(output, 50, "%d", rmot);
+    xbSerial.print("rmot: ");
+    xbSerial.println(output);
+*/
 	//The directions
     // If the motor does not have very small speed values, or IDLE_TIMEOUT ms have passed since we received a valid message and finished our action
-	if ((millis() - idleTimer) > IDLE_TIMEOUT) {
+/*	if ((millis() - idleTimer) > IDLE_TIMEOUT) {
         digitalWriteFast(M1IN1, LOW);
         digitalWriteFast(M1IN2, LOW);
         digitalWriteFast(M2IN1, LOW);
         digitalWriteFast(M2IN2, LOW);
         //Set the pwm outputs
-        analogWrite(M1D1, 0);
-        analogWrite(M2D1, 0);
+        analogWrite(M1D1, 255);
+        analogWrite(M2D1, 255);
 	}
-	else if (!((abs(ldem - 100) < 2) && (abs(rdem - 100) < 2))) {
-        digitalWriteFast(M1IN1, ldem < 100);
-        digitalWriteFast(M1IN2, !(ldem < 100));
-        digitalWriteFast(M2IN1, rdem < 100);
-        digitalWriteFast(M2IN2, !(rdem < 100));
+	else */if (!((abs(lmot - 100) < 2) && (abs(rmot - 100) < 2))) {
+        digitalWriteFast(M1IN1, lmot < 100);
+        digitalWriteFast(M1IN2, !(lmot < 100));
+        digitalWriteFast(M2IN1, rmot < 100);
+        digitalWriteFast(M2IN2, !(rmot < 100));
         //Set the pwm outputs
         analogWrite(M1D1, 255 - lmag);
         analogWrite(M2D1, 255 - rmag);
     }
-	// Just finished our action, or have received no valid message and 100ms has not passed
+	// Just finished our action, or have received no valid message and IDLE_TIMEOUT has not passed
 	else {
         i_errorL = 0.f;
         i_errorR = 0.f;
         i_errorTheta = 0.f;
         i_errorDistance = 0.f;
+        // Pretty sure this stuff doesn't work and it's just PID making it brake
 		digitalWriteFast(M1IN1, HIGH);
 		digitalWriteFast(M1IN2, HIGH);
 		digitalWriteFast(M2IN1, HIGH);
@@ -564,7 +506,7 @@ void setMotors(uint8_t ldem, uint8_t rdem) {
         //Set the pwm outputs
         analogWrite(M1D1, 255);
         analogWrite(M2D1, 255);
-	}
+	} 
 }
 
 void calculateLocation() {
@@ -578,48 +520,15 @@ void calculateLocation() {
 	lenc.write(0);
 	renc.write(0);
     
-//     lcountPers += lcount;
-//     rcountPers += rcount;
-    
     float deltaTheta = (rcount - lcount) * COMPASS_CONSTANT;
     float deltaDistance = (rvel + lvel) * 0.5;
     
     theta += deltaTheta;
     distance += deltaDistance;
 
-// 	float omegaVel = (rvel - lvel) / WB;
-
-	//if (omega == 0) {
-		//Straight line
-		//float cosv = cos(pose[2]);
-		//float sinv = sin(pose[2]);
-		//pose[0] += cosv * lvel;
-		//pose[1] += sinv * lvel;
-	//}
-	//else {
-		//Curvelinear
-		//float R = (WB * 0.5) * ((lvel + rvel) / (rvel - lvel));
-		//float ICC[] = { pose[0] - R * sinf(pose[2]), pose[1] + R * cosf(pose[2]) };
-
-		//float cost = cos(omega*DELTAT);
-		//float sint = sin(omega*DELTAT);
-
-		//float newpose[3];
-		//newpose[0] = cost * (pose[0] - ICC[0]) - sint * (pose[1] - ICC[1]) + ICC[0];
-		//newpose[1] = sint * (pose[0] - ICC[0]) + cost * (pose[1] - ICC[1]) + ICC[1];
-
-		//pose[0] = newpose[0];
-		//pose[1] = newpose[1];
-		//pose[2] = newpose[2];
-
-	//}
-    
-//     pose[2] = pose[2] + omegaVel*DELTAT;
-
 #ifdef DEBUG
-	if (loccount % 100 == 0) {
         /* Debug stuff goes here */
-        output[0] = 0;
+        /*output[0] = 0;
         switch(mode)
         {
             case TASK_IDLE:
@@ -639,20 +548,23 @@ void calculateLocation() {
                 break;
         }
         xbSerial.print("mode: ");
-        xbSerial.println(output);
+        xbSerial.println(output);*/
+//         output[0] = 0;
+//         snprintf(output, 50, "%d", omega);
+//         xbSerial.print("omega: ");
+//         xbSerial.println(output);
+//         output[0] = 0;
+//         snprintf(output, 50, "%d", (int)(e_tTheta * 1000));
+//         xbSerial.print("e_tTheta: ");
+//         xbSerial.println(output);
+//         output[0] = 0;
+//         snprintf(output, 50, "%d", demandedVelR);
+//         xbSerial.print("demandedVelR: ");
+//         xbSerial.println(output);
         output[0] = 0;
-        snprintf(output, 50, "%d", (int)(desiredTheta * 1000));
-        xbSerial.print("desiredTheta: ");
+        snprintf(output, 50, "%lu", lastActionTime);
+        xbSerial.print("lastActionTime: ");
         xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(e_tTheta * 1000));
-        xbSerial.print("e_tTheta: ");
-        xbSerial.println(output);
-        output[0] = 0;
-        snprintf(output, 50, "%d", (int)(theta * 1000));
-        xbSerial.print("theta: ");
-        xbSerial.println(output);
-	}
 #endif
 }
 

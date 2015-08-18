@@ -6,7 +6,7 @@ void updateLoopOnce();
 
 void setupMotors();
 
-void setMotors(uint8_t ldem, uint8_t rdem);
+void setMotors(int16_t ldem, int16_t rdem);
 
 void calculateLocation();
 
